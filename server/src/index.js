@@ -87,6 +87,11 @@ io.on('connection', (socket) => {
     io.to(message.receiverId).emit('receiveMessage', message);
   });
 
+  socket.on('typing', (data) => {
+    // thee 'data' here is the object { senderId, receiverId } from Step 1
+    io.to(data.receiverId).emit('typing', data); 
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });

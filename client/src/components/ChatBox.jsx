@@ -4,22 +4,9 @@ import { IoMdSend } from "react-icons/io";
 import toast from "react-hot-toast";
 import { useSocket } from "../context/SocketContext";
 import { IoArrowBack } from "react-icons/io5";
-import { format, isToday, isYesterday } from 'date-fns';
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-
-// --- Helper Function for Formatting Timestamps ---
-const formatMessageTimestamp = (timestamp) => {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-
-    if (isToday(date)) {
-        return format(date, 'p'); // e.g., "12:35 PM"
-    }
-    if (isYesterday(date)) {
-        return `Yesterday at ${format(date, 'p')}`; // e.g., "Yesterday at 4:30 PM"
-    }
-    return format(date, 'MMM d, p'); // e.g., "Oct 26, 2:15 PM"
-};
+import useTypingListener from "../hooks/useTypingListener";
+import { formatMessageTimestamp } from "../utils/messagingUtilities";
 
 export default function ChatBox({ selectedUser, currentUser, onBack }) {
     const [messages, setMessages] = useState([]);
@@ -27,10 +14,14 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
     const socket = useSocket();
     const messagesEndRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isTyping, setIsTyping] = useState(false);
+    const typingTimeoutRef = useRef(null);
+
+    useTypingListener(socket, currentUser, selectedUser, setIsTyping);
 
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
 
-    useEffect(scrollToBottom, [messages]);
+    useEffect(scrollToBottom, [messages, isTyping]);
 
     useEffect(() => {
         if (!socket || !currentUser?._id) return;
@@ -54,13 +45,32 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                 setMessages(await res.json());
             } catch (err) {
                 toast.error('Failed to load messages');
-            }finally {
+            } finally {
                 setIsLoading(false);
             }
         };
         fetchMessages();
     }, [selectedUser, currentUser]);
-    
+
+    const handleInputChange = (e) => {
+        setMessageText(e.target.value);
+
+        // --- Throttling Logic ---
+        // If there is no active timeout...
+        if (!typingTimeoutRef.current) {
+            // ...send the typing event immediately.
+            socket.emit('typing', {
+                senderId: currentUser._id,
+                receiverId: selectedUser._id
+            });
+
+            // Then, set a timeout. We won't be able to send another 
+            // 'typing' event until this timeout clears.
+            typingTimeoutRef.current = setTimeout(() => {
+                typingTimeoutRef.current = null;
+            }, 1000);
+        }
+    };
     const handleSendMsg = async (e) => {
         e.preventDefault();
         if (!messageText.trim() || !selectedUser || !currentUser) return;
@@ -74,6 +84,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             setMessageText("");
         } catch (err) { toast.error(err.message || 'Error sending message'); }
     };
+
     if (!selectedUser) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -113,7 +124,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                     <p>{msg.text}</p>
                                 </div>
                                 {/* Formatted and styled timestamp */}
-                                <p className="text-xs text-base-300 mt-1 px-1">
+                                <p className="text-xs text-base-400 opacity-50 mt-1 px-1">
                                     {formatMessageTimestamp(msg.timestamp)}
                                 </p>
                             </div>
@@ -124,13 +135,23 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                         </div>
                     )}
                 </div>
+
+                {/* Typing Indicator */}
+                {isTyping && (
+                    <div className="flex flex-col items-start">
+                        <div className="max-w-md lg:max-w-xl p-3 rounded-2xl bg-base-300 rounded-bl-sm">
+                            <p className="text-sm italic">typing...</p>
+                        </div>
+                    </div>
+                )}
+
                 <div ref={messagesEndRef} />
             </div>
 
             {/* Message Input Form */}
             <div className="flex-shrink-0 w-full p-4 bg-base-200 ">
                 <form onSubmit={handleSendMsg} className="flex gap-2">
-                    <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Type a message..." className="flex-1 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="text" value={messageText} onChange={handleInputChange} placeholder="Type a message..." className="flex-1 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     <button type="submit" className='btn btn-primary text-2xl px-4 py-2 rounded-lg hover:bg-base-200 disabled:opacity-99 disabled:cursor-not-allowed' disabled={!messageText.trim()}>
                         <IoMdSend />
                     </button>
