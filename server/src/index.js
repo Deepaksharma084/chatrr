@@ -74,7 +74,7 @@ app.use((req, res, next) => {
 app.use('/auth', userAuthRoute);
 app.use('/msg', messagesRoute);
 
-// --- SOCKET.IO EVENT LISTENERS ---
+// ---- SOCKET.IO EVENT LISTENERS ----
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -90,6 +90,12 @@ io.on('connection', (socket) => {
   socket.on('typing', (data) => {
     // thee 'data' here is the object { senderId, receiverId } from Step 1
     io.to(data.receiverId).emit('typing', data); 
+  });
+
+  socket.on('mark-as-read', (data) => {
+    // Forward the event to the contact so their UI can update
+    // data should be { currentUserId, contactId }
+    io.to(data.contactId).emit('messages-read', { readerId: data.currentUserId });
   });
 
   socket.on('disconnect', () => {

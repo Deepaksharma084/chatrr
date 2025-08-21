@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { API_BASE_URL } from "../config";
 import { IoMdSend } from "react-icons/io";
+import { BsCheckAll } from "react-icons/bs";
 import toast from "react-hot-toast";
 import { useSocket } from "../context/SocketContext";
 import { IoArrowBack } from "react-icons/io5";
@@ -17,87 +18,125 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
     const [isTyping, setIsTyping] = useState(false);
     const typingTimeoutRef = useRef(null);
 
+    // This custom hook for the typing indicator is self-contained and safe.
     useTypingListener(socket, currentUser, selectedUser, setIsTyping);
 
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
 
-    useEffect(scrollToBottom, [messages, isTyping]);
+    // --- FIX #1: THE JITTER BUG ---
+    // The scroll should ONLY be triggered by a change in the messages array.
+    useEffect(scrollToBottom, [messages]);
 
+    // --- EFFECT FOR FETCHING & MARKING MESSAGES (NO SOCKETS HERE) ---
     useEffect(() => {
-        if (!socket || !currentUser?._id) return;
-        socket.emit('join', currentUser._id);
-        const handleReceiveMessage = (message) => {
-            // Only update state if the message is part of the current conversation
-            if (message.senderId === selectedUser?._id || message.senderId === currentUser?._id) {
-                setMessages(prev => [...prev, message]);
-            }
-        };
-        socket.on('receiveMessage', handleReceiveMessage);
-        return () => socket.off('receiveMessage', handleReceiveMessage);
-    }, [socket, currentUser, selectedUser]);
+        // Don't run if we don't have the necessary info
+        if (!selectedUser || !currentUser || !socket) {
+            setMessages([]);
+            return;
+        }
 
-    useEffect(() => {
-        if (!selectedUser || !currentUser) { setMessages([]); return; }
-        const fetchMessages = async () => {
+        const fetchAndMarkMessages = async () => {
+            setIsLoading(true);
             try {
+                // Step 1: Fetch the conversation history
                 const res = await fetch(`${API_BASE_URL}/msg/get/${selectedUser._id}`, { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to fetch messages');
-                setMessages(await res.json());
+                const fetchedMessages = await res.json();
+                setMessages(fetchedMessages);
+
+                // Step 2: Check if there are any unread messages from this contact
+                const unreadMessagesExist = fetchedMessages.some(msg => msg.senderId === selectedUser._id && !msg.isRead);
+
+                // Step 3: If so, mark them as read in the DB and notify the contact
+                if (unreadMessagesExist) {
+                    await fetch(`${API_BASE_URL}/msg/mark-read/${selectedUser._id}`, { method: 'POST', credentials: 'include' });
+                    socket.emit('mark-as-read', { currentUserId: currentUser._id, contactId: selectedUser._id });
+                }
             } catch (err) {
-                toast.error('Failed to load messages');
+                toast.error(err.message || 'Failed to load messages');
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchMessages();
-    }, [selectedUser, currentUser]);
 
+        fetchAndMarkMessages();
+    }, [selectedUser, currentUser, socket]); // This re-runs when you switch chats
+
+    // --- FIX #2 & #3: UNIFIED EFFECT FOR ALL REAL-TIME SOCKET EVENTS ---
+    useEffect(() => {
+        // Don't set up listeners if socket or user isn't ready
+        if (!socket || !currentUser) return;
+
+        // This line is essential for receiving any messages directed to this user
+        socket.emit('join', currentUser._id);
+
+        const handleReceiveMessage = (message) => {
+            // Check if the incoming message belongs to the currently open chat
+            if (message.senderId === selectedUser?._id) {
+                setMessages(prevMessages => [...prevMessages, message]);
+            }
+        };
+
+        const handleMessagesRead = ({ readerId }) => {
+            // Check if the read confirmation is from the currently open chat
+            if (readerId === selectedUser?._id) {
+                setMessages(prevMessages =>
+                    prevMessages.map(msg =>
+                        // Only update messages that YOU sent
+                        msg.senderId === currentUser._id ? { ...msg, isRead: true } : msg
+                    )
+                );
+            }
+        };
+
+        // Attach listeners
+        socket.on('receiveMessage', handleReceiveMessage);
+        socket.on('messages-read', handleMessagesRead);
+
+        // This cleanup function is CRITICAL to prevent race conditions.
+        // It runs whenever a dependency changes (e.g., when `selectedUser` changes).
+        // It removes the old listeners for the previous chat before creating new ones for the new chat.
+        return () => {
+            socket.off('receiveMessage', handleReceiveMessage);
+            socket.off('messages-read', handleMessagesRead);
+        };
+    }, [socket, currentUser, selectedUser]); // Correct dependency array
+
+
+    // --- Other handlers (These are fine as they are) ---
     const handleInputChange = (e) => {
         setMessageText(e.target.value);
-
-        // --- Throttling Logic ---
-        // If there is no active timeout...
         if (!typingTimeoutRef.current) {
-            // ...send the typing event immediately.
-            socket.emit('typing', {
-                senderId: currentUser._id,
-                receiverId: selectedUser._id
-            });
-
-            // Then, set a timeout. We won't be able to send another 
-            // 'typing' event until this timeout clears.
-            typingTimeoutRef.current = setTimeout(() => {
-                typingTimeoutRef.current = null;
-            }, 1000);
+            socket.emit('typing', { senderId: currentUser._id, receiverId: selectedUser._id });
+            typingTimeoutRef.current = setTimeout(() => { typingTimeoutRef.current = null; }, 2000);
         }
     };
     const handleSendMsg = async (e) => {
         e.preventDefault();
-        if (!messageText.trim() || !selectedUser || !currentUser) return;
+        if (!messageText.trim()) return;
+        const messageData = { senderId: currentUser._id, receiverId: selectedUser._id, text: messageText.trim() };
+        // Optimistically update UI
+        setMessages(prev => [...prev, { ...messageData, _id: Date.now().toString(), timestamp: new Date().toISOString() }]);
+        setMessageText("");
         try {
-            const messageData = { senderId: currentUser._id, receiverId: selectedUser._id, text: messageText.trim() };
             const res = await fetch(`${API_BASE_URL}/msg/create`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(messageData) });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to send message');
-            setMessages(prev => [...prev, data]);
-            socket.emit('sendMessage', data);
-            setMessageText("");
-        } catch (err) { toast.error(err.message || 'Error sending message'); }
+            const savedMessage = await res.json();
+            if (!res.ok) throw new Error('Failed to send');
+            // Replace optimistic message with actual saved message from server
+            setMessages(prev => prev.map(msg => msg._id === messageData._id ? savedMessage : msg));
+            socket.emit('sendMessage', savedMessage);
+        } catch (err) { toast.error('Error sending message'); /* Add logic to show message failed */ }
     };
 
     if (!selectedUser) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <h1 className='text-3xl font-bold'>Welcome to Chatrr</h1>
-                <p className='text-lg'>Select a contact to start messaging</p>
-            </div>
-        );
+        return <div className="flex flex-col gap-4 items-center justify-center h-full">
+            <p className="text-gray-500 text-2xl">
+            Welcome to chatrr
+            </p>
+            <p className="text-gray-500 text-lg">Have a conversation</p>
+        </div>;
     }
-
-    if (isLoading) {
-        return <MessageSkeleton />;
-    }
-
+    if (isLoading) { return <MessageSkeleton />; }
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
@@ -123,10 +162,15 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                 <div className={`max-w-md lg:max-w-xl p-3 rounded-2xl ${msg.senderId === currentUser._id ? 'bg-primary text-primary-content rounded-br-sm' : 'bg-base-300 rounded-bl-sm'}`}>
                                     <p>{msg.text}</p>
                                 </div>
-                                {/* Formatted and styled timestamp */}
-                                <p className="text-xs text-base-400 opacity-50 mt-1 px-1">
-                                    {formatMessageTimestamp(msg.timestamp)}
-                                </p>
+                                <div className="text-xs text-base-400 opacity-50 mt-1 px-1 flex items-center gap-1">
+                                    <span>{formatMessageTimestamp(msg.timestamp)}</span>
+                                    {/* *** THIS IS THE NEW PART *** */}
+                                    {msg.senderId === currentUser._id && (
+                                        msg.isRead ?
+                                            <BsCheckAll className="text-green-500 w-4 h-4" /> // Read Icon
+                                            : <BsCheckAll className="w-4 h-4" /> // Sent Icon
+                                    )}
+                                </div>
                             </div>
                         ))
                     ) : (

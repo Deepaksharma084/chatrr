@@ -5,7 +5,8 @@ const schema = new mongoose.Schema({
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String },
     image: { type: String },
-    timestamp: { type: Date, default: Date.now }
+    timestamp: { type: Date, default: Date.now },
+    isRead: { type: Boolean, default: false }
 })
 
 export default mongoose.model('Message', schema);

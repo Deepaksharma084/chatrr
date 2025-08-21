@@ -55,4 +55,23 @@ router.get('/get/:receiverId', async (req, res) => {
     }
 });
 
+router.post('/mark-read/:contactId', async (req, res) => {
+    try {
+        const { contactId } = req.params;
+        const currentUserId = req.user._id;
+
+        // Update all messages from the contact to the current user that are unread
+        await Message.updateMany(
+            { senderId: contactId, receiverId: currentUserId, isRead: false },
+            { $set: { isRead: true } }
+        );
+
+        res.status(200).json({ message: 'Messages marked as read' });
+
+    } catch (error) {
+        console.error('Error marking messages as read:', error);
+        res.status(500).json({ error: 'Failed to update messages' });
+    }
+});
+
 export default router;
