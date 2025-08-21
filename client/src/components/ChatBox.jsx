@@ -25,7 +25,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
 
     // --- FIX #1: THE JITTER BUG ---
     // The scroll should ONLY be triggered by a change in the messages array.
-    useEffect(scrollToBottom, [messages]);
+    useEffect(scrollToBottom, [messages ,isTyping]);
 
     // --- EFFECT FOR FETCHING & MARKING MESSAGES (NO SOCKETS HERE) ---
     useEffect(() => {
