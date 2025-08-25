@@ -18,40 +18,26 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
     const [isTyping, setIsTyping] = useState(false);
     const typingTimeoutRef = useRef(null);
 
-    // This custom hook for the typing indicator is self-contained and safe.
     useTypingListener(socket, currentUser, selectedUser, setIsTyping);
 
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
 
-    // --- FIX #1: THE JITTER BUG ---
-    // The scroll should ONLY be triggered by a change in the messages array.
-    useEffect(scrollToBottom, [messages ,isTyping]);
+    useEffect(scrollToBottom, [messages,isTyping]);
 
-    // --- EFFECT FOR FETCHING & MARKING MESSAGES (NO SOCKETS HERE) ---
+    // This effect ONLY handles fetching the initial message history.
     useEffect(() => {
-        // Don't run if we don't have the necessary info
-        if (!selectedUser || !currentUser || !socket) {
+        if (!selectedUser || !currentUser) {
             setMessages([]);
             return;
         }
 
-        const fetchAndMarkMessages = async () => {
+        const fetchInitialMessages = async () => {
             setIsLoading(true);
             try {
-                // Step 1: Fetch the conversation history
                 const res = await fetch(`${API_BASE_URL}/msg/get/${selectedUser._id}`, { credentials: 'include' });
-                if (!res.ok) throw new Error('Failed to fetch messages');
+                if (!res.ok) throw new Error('Failed to fetch');
                 const fetchedMessages = await res.json();
                 setMessages(fetchedMessages);
-
-                // Step 2: Check if there are any unread messages from this contact
-                const unreadMessagesExist = fetchedMessages.some(msg => msg.senderId === selectedUser._id && !msg.isRead);
-
-                // Step 3: If so, mark them as read in the DB and notify the contact
-                if (unreadMessagesExist) {
-                    await fetch(`${API_BASE_URL}/msg/mark-read/${selectedUser._id}`, { method: 'POST', credentials: 'include' });
-                    socket.emit('mark-as-read', { currentUserId: currentUser._id, contactId: selectedUser._id });
-                }
             } catch (err) {
                 toast.error(err.message || 'Failed to load messages');
             } finally {
@@ -59,30 +45,38 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             }
         };
 
-        fetchAndMarkMessages();
-    }, [selectedUser, currentUser, socket]); // This re-runs when you switch chats
+        fetchInitialMessages();
+    }, [selectedUser, currentUser]);
 
-    // --- FIX #2 & #3: UNIFIED EFFECT FOR ALL REAL-TIME SOCKET EVENTS ---
+    // This UNIFIED effect handles ALL real-time socket events and logic.
     useEffect(() => {
-        // Don't set up listeners if socket or user isn't ready
         if (!socket || !currentUser) return;
-
-        // This line is essential for receiving any messages directed to this user
+        
+        // Join the user's personal room on the server
         socket.emit('join', currentUser._id);
 
         const handleReceiveMessage = (message) => {
             // Check if the incoming message belongs to the currently open chat
             if (message.senderId === selectedUser?._id) {
                 setMessages(prevMessages => [...prevMessages, message]);
+                
+                // --- THIS IS THE CRUCIAL ADDITION ---
+                // Because we just received and displayed this message, it is now "read".
+                // 1. Immediately notify the sender for a real-time UI update.
+                socket.emit('mark-as-read', { 
+                    currentUserId: currentUser._id, 
+                    contactId: message.senderId // This is the selectedUser
+                });
+                
+                // 2. Also, update the database in the background. We don't need to await this.
+                fetch(`${API_BASE_URL}/msg/mark-read/${message.senderId}`, { method: 'POST', credentials: 'include' });
             }
         };
-
+        
         const handleMessagesRead = ({ readerId }) => {
-            // Check if the read confirmation is from the currently open chat
             if (readerId === selectedUser?._id) {
-                setMessages(prevMessages =>
-                    prevMessages.map(msg =>
-                        // Only update messages that YOU sent
+                setMessages(prevMessages => 
+                    prevMessages.map(msg => 
                         msg.senderId === currentUser._id ? { ...msg, isRead: true } : msg
                     )
                 );
@@ -93,17 +87,15 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         socket.on('receiveMessage', handleReceiveMessage);
         socket.on('messages-read', handleMessagesRead);
 
-        // This cleanup function is CRITICAL to prevent race conditions.
-        // It runs whenever a dependency changes (e.g., when `selectedUser` changes).
-        // It removes the old listeners for the previous chat before creating new ones for the new chat.
+        // Cleanup function removes listeners for the previous chat
         return () => {
             socket.off('receiveMessage', handleReceiveMessage);
             socket.off('messages-read', handleMessagesRead);
         };
-    }, [socket, currentUser, selectedUser]); // Correct dependency array
+    }, [socket, currentUser, selectedUser]);
 
 
-    // --- Other handlers (These are fine as they are) ---
+    // --- Other handlers ---
     const handleInputChange = (e) => {
         setMessageText(e.target.value);
         if (!typingTimeoutRef.current) {
@@ -111,31 +103,39 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             typingTimeoutRef.current = setTimeout(() => { typingTimeoutRef.current = null; }, 2000);
         }
     };
+    
+    // Optimistic UI update for sending messages
     const handleSendMsg = async (e) => {
         e.preventDefault();
         if (!messageText.trim()) return;
-        const messageData = { senderId: currentUser._id, receiverId: selectedUser._id, text: messageText.trim() };
-        // Optimistically update UI
-        setMessages(prev => [...prev, { ...messageData, _id: Date.now().toString(), timestamp: new Date().toISOString() }]);
+        const tempId = `temp_${Date.now()}`;
+        const messageData = { senderId: currentUser._id, receiverId: selectedUser._id, text: messageText.trim(), isRead: false, timestamp: new Date().toISOString() };
+        
+        setMessages(prev => [...prev, { ...messageData, _id: tempId }]);
         setMessageText("");
+        
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/create`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(messageData) });
+            const res = await fetch(`${API_BASE_URL}/msg/create`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ senderId: messageData.senderId, receiverId: messageData.receiverId, text: messageData.text }) });
             const savedMessage = await res.json();
             if (!res.ok) throw new Error('Failed to send');
-            // Replace optimistic message with actual saved message from server
-            setMessages(prev => prev.map(msg => msg._id === messageData._id ? savedMessage : msg));
+
+            setMessages(prev => prev.map(msg => msg._id === tempId ? savedMessage : msg));
             socket.emit('sendMessage', savedMessage);
-        } catch (err) { toast.error('Error sending message'); /* Add logic to show message failed */ }
+        } catch (err) { 
+            toast.error('Could not send message.');
+            setMessages(prev => prev.filter(msg => msg._id !== tempId)); // Remove failed message
+        }
     };
 
     if (!selectedUser) {
         return <div className="flex flex-col gap-4 items-center justify-center h-full">
             <p className="text-gray-500 text-2xl">
-            Welcome to chatrr
+                Welcome to chatrr
             </p>
             <p className="text-gray-500 text-lg">Have a conversation</p>
         </div>;
     }
+
     if (isLoading) { return <MessageSkeleton />; }
     return (
         <div className="flex flex-col h-full">
@@ -164,7 +164,6 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                 </div>
                                 <div className="text-xs text-base-400 opacity-50 mt-1 px-1 flex items-center gap-1">
                                     <span>{formatMessageTimestamp(msg.timestamp)}</span>
-                                    {/* *** THIS IS THE NEW PART *** */}
                                     {msg.senderId === currentUser._id && (
                                         msg.isRead ?
                                             <BsCheckAll className="text-green-500 w-4 h-4" /> // Read Icon

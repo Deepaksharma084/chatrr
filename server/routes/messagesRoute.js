@@ -60,7 +60,10 @@ router.post('/mark-read/:contactId', async (req, res) => {
         const { contactId } = req.params;
         const currentUserId = req.user._id;
 
-        // Update all messages from the contact to the current user that are unread
+        // here this is mongoose query to update multiple documents
+        //syntax-SomeDoc.updateMany(filter, update)
+        //filter = which documents (messages) to find.
+        //update = what to change in those documents.
         await Message.updateMany(
             { senderId: contactId, receiverId: currentUserId, isRead: false },
             { $set: { isRead: true } }
