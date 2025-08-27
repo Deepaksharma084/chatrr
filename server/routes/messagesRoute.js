@@ -42,15 +42,20 @@ router.post('/create', async (req, res) => {
 router.get('/get/:receiverId', async (req, res) => {
     try {
         const { receiverId } = req.params;
+        const currentUserId = req.user._id;
+
         const messages = await Message.find({
             $or: [
-                { senderId: req.user._id, receiverId },
-                { senderId: receiverId, receiverId: req.user._id }
-            ]
+                { senderId: currentUserId, receiverId: receiverId },
+                { senderId: receiverId, receiverId: currentUserId }
+            ],
+            // THIS IS THE CRITICAL FILTER:
+            // Only get messages where the `clearedBy` array does NOT include the current user's ID.
+            clearedBy: { $nin: [currentUserId] }
         }).sort({ timestamp: 1 });
+
         res.json(messages);
     } catch (error) {
-        console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
@@ -107,6 +112,36 @@ router.delete('/delete/:messageId', async (req, res) => {
     }
 });
 
+router.post('/clear/:contactId', async (req, res) => {
+    try {
+        const { contactId } = req.params;
+        const currentUserId = req.user._id;
 
+        const conversationFilter = {
+            $or: [
+                { senderId: currentUserId, receiverId: contactId },
+                { senderId: contactId, receiverId: currentUserId }
+            ]
+        };
+
+        // Stage 1: Mark messages as cleared by the current user.
+        await Message.updateMany(
+            conversationFilter,
+            { $addToSet: { clearedBy: currentUserId } }
+        );
+
+        // Stage 2: After marking, find and delete any messages that have now been
+        // cleared by BOTH users involved in the conversation.
+        await Message.deleteMany({
+            ...conversationFilter,
+            clearedBy: { $all: [currentUserId, contactId] }
+        });
+
+        res.status(200).json({ message: 'Chat cleared successfully' });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to clear chat' });
+    }
+});
 
 export default router;

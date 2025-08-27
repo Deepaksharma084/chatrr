@@ -7,7 +7,11 @@ const schema = new mongoose.Schema({
     image: { type: String },
     timestamp: { type: Date, default: Date.now },
     isRead: { type: Boolean, default: false },
-    isDeleted: { type: Boolean, default: false }
+    isDeleted: { type: Boolean, default: false },
+    clearedBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }]
 })
 
 export default mongoose.model('Message', schema);

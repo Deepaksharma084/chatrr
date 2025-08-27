@@ -9,6 +9,7 @@ export default function Contacts({ onSelectUser }) {
     const [users, setUsers] = useState([]);
     const [currentUser, setCurrentUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [onlineUsers, setOnlineUsers] = useState({});
 
     const socket = useSocket();
 
@@ -54,6 +55,27 @@ export default function Contacts({ onSelectUser }) {
         };
     }, [socket]);
 
+    // This useEffect will be responsible for listening to online status updates from the server.
+    useEffect(() => {
+        if (!socket) return;
+        
+        // Listen for the 'onlineUsers' event from the server
+        socket.on('onlineUsers', (usersArray) => {
+            // The server sends an array of online user IDs. We convert it to
+            // an object for fast lookups (O(1) vs O(n)).
+            const usersObj = usersArray.reduce((acc, userId) => {
+                acc[userId] = true;
+                return acc;
+            }, {});
+            setOnlineUsers(usersObj);
+        });
+
+        // The cleanup function is important to prevent memory leaks
+        return () => {
+            socket.off('onlineUsers');
+        };
+    }, [socket]); // Dependency on socket ensures this runs when the socket connects
+
     // the below fun runs and return the array of users without the current user based on the condition that the current user should be true and the user id should not match the current user id
     const filteredUsers = users.filter(user => currentUser && user._id !== currentUser._id);
 
@@ -78,16 +100,30 @@ export default function Contacts({ onSelectUser }) {
             ) : (
                 // This inner div will grow and become scrollable if content overflows
                 <div className='flex flex-col p-2 rounded-lg h-full overflow-y-auto'>
-                    {filteredUsers.map(user => (
-                        <div
-                            key={user._id}
-                            onClick={() => onSelectUser(user)}
-                            className='flex flex-row items-center gap-4 py-3 px-4 m-1 rounded-lg hover:bg-base-300 cursor-pointer transition-colors duration-200'
-                        >
-                            <img className='h-12 w-12 object-cover rounded-full' src={user.picture} alt={user.name} />
-                            <p className='text-lg'>{user.name}</p>
-                        </div>
-                    ))}
+                    {filteredUsers.map(user => {
+                        // --- NEW CHECK FOR ONLINE STATUS ---
+                        const isOnline = onlineUsers[user._id];
+
+                        return (
+                            <div
+                                key={user._id}
+                                onClick={() => onSelectUser(user)}
+                                className='flex flex-row items-center gap-4 py-3 px-4 m-1 rounded-lg hover:bg-base-300 cursor-pointer transition-colors duration-200'
+                            >
+                                {/* --- NEW VISUAL INDICATOR --- */}
+                                {/* We wrap the image in a container to position the online dot. */}
+                                <div className="relative">
+                                    <img className='h-12 w-12 object-cover rounded-full' src={user.picture} alt={user.name} />
+                                    {isOnline && (
+                                        // This is the green dot. We position it at the bottom-right.
+                                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-base-200"></span>
+                                    )}
+                                </div>
+                                
+                                <p className='text-lg'>{user.name}</p>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>

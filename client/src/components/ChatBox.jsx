@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useSocket } from "../context/SocketContext";
 import { IoArrowBack } from "react-icons/io5";
 import { MdDelete } from "react-icons/md";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import useTypingListener from "../hooks/useTypingListener";
 import { formatMessageTimestamp } from "../utils/messagingUtilities";
@@ -22,8 +23,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
     useTypingListener(socket, currentUser, selectedUser, setIsTyping);
 
     const scrollToBottom = () => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); };
-    
-    useEffect(scrollToBottom, [messages,isTyping]);
+
+    useEffect(scrollToBottom, [messages, isTyping]);
 
     // This effect ONLY handles fetching the initial message history when you select a new chat.
     useEffect(() => {
@@ -31,25 +32,36 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             setMessages([]);
             return;
         }
-        const fetchInitialMessages = async () => {
+        const fetchInitialMessagesAndMarkRead = async () => {
             setIsLoading(true);
             try {
+                // Fetch the messages first
                 const res = await fetch(`${API_BASE_URL}/msg/get/${selectedUser._id}`, { credentials: 'include' });
                 if (!res.ok) throw new Error('Failed to fetch messages');
-                setMessages(await res.json());
+                const fetchedMessages = await res.json();
+                setMessages(fetchedMessages);
+
+                // ** THIS IS THE CORRECTED "MARK AS READ" LOGIC THAT WAS MISSING **
+                const unreadMessagesExist = fetchedMessages.some(m => m.senderId === selectedUser._id && !m.isRead);
+                if (unreadMessagesExist) {
+                    await fetch(`${API_BASE_URL}/msg/mark-read/${selectedUser._id}`, { method: 'POST', credentials: 'include' });
+                    // Notify sender in real-time
+                    socket.emit('mark-as-read', { currentUserId: currentUser._id, contactId: selectedUser._id });
+                }
+
             } catch (err) {
                 toast.error(err.message || 'Failed to load messages');
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchInitialMessages();
-    }, [selectedUser, currentUser]);
+        fetchInitialMessagesAndMarkRead();
+    }, [selectedUser, currentUser, socket]);
 
     // This is the unified effect that handles ALL real-time socket events.
     useEffect(() => {
         if (!socket || !currentUser) return;
-        
+
         socket.emit('join', currentUser._id);
 
         // Handler for receiving a new message
@@ -60,7 +72,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                 fetch(`${API_BASE_URL}/msg/mark-read/${message.senderId}`, { method: 'POST', credentials: 'include' });
             }
         };
-        
+
         // Handler for seeing that the other user read sender messages
         const handleMessagesRead = ({ readerId }) => {
             if (readerId === selectedUser?._id) {
@@ -86,6 +98,26 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         };
     }, [socket, currentUser, selectedUser]);
 
+    // --- CLEAR CHAT FUNCTIONALITY ---
+    const handleClearChat = async () => {
+        if (!confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) return;
+
+        // Step 1: Optimistic UI Update. Instantly clear the messages from your screen.
+        setMessages([]);
+
+        // Step 2: API Call. Tell the server to perform the clear/delete logic.
+        try {
+            const res = await fetch(`${API_BASE_URL}/msg/clear/${selectedUser._id}`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error('Server failed to clear chat');
+            toast.success("Chat cleared");
+        } catch (err) {
+            toast.error('Could not clear chat. Please refresh and try again.');
+            // Note: We don't restore messages on failure, as a refresh will fix the view.
+        }
+    }
 
     // --- HANDLER FUNCTIONS ---
 
@@ -102,26 +134,26 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         if (!messageText.trim()) return;
 
         const tempId = `temp_${Date.now()}`;
-        const messageData = { 
+        const messageData = {
             _id: tempId,
-            senderId: currentUser._id, 
-            receiverId: selectedUser._id, 
-            text: messageText.trim(), 
-            isRead: false, 
+            senderId: currentUser._id,
+            receiverId: selectedUser._id,
+            text: messageText.trim(),
+            isRead: false,
             isDeleted: false,
-            timestamp: new Date().toISOString() 
+            timestamp: new Date().toISOString()
         };
-        
+
         // Optimistically update senders UI so the message appears instantly
         setMessages(prev => [...prev, messageData]);
         setMessageText("");
-        
+
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/create`, { 
-                method: 'POST', 
-                credentials: 'include', 
-                headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ senderId: messageData.senderId, receiverId: messageData.receiverId, text: messageData.text }) 
+            const res = await fetch(`${API_BASE_URL}/msg/create`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senderId: messageData.senderId, receiverId: messageData.receiverId, text: messageData.text })
             });
             const savedMessage = await res.json();
             if (!res.ok) throw new Error('Failed to send message');
@@ -129,7 +161,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             setMessages(prev => prev.map(msg => msg._id === tempId ? savedMessage : msg));
             socket.emit('sendMessage', savedMessage);
 
-        } catch (err) { 
+        } catch (err) {
             toast.error('Could not send message.');
             // If sending failed, remove the optimistic message from the UI
             setMessages(prev => prev.filter(msg => msg._id !== tempId));
@@ -142,7 +174,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         const originalMessages = [...messages]; // Backup state in case of an error
 
         // Optimistically update senders UI to show the message as deleted instantly
-        setMessages(prev => prev.map(msg => 
+        setMessages(prev => prev.map(msg =>
             msg._id === messageId ? { ...msg, text: "This message was deleted", isDeleted: true } : msg
         ));
 
@@ -175,18 +207,37 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             </div>
         );
     }
-    
+
     if (isLoading) { return <MessageSkeleton />; }
-    
+
     return (
         <div className="flex flex-col h-full">
             {/* Header */}
             <div className="flex-shrink-0 w-full p-3.5 flex items-center gap-4 shadow-md bg-base-100">
-                <button onClick={onBack} className="text-2xl p-2 rounded-full hover:bg-base-200 md:hidden">
-                    <IoArrowBack />
-                </button>
-                <img className="h-14 w-14 rounded-full object-cover" src={selectedUser.picture} alt={selectedUser.name} />
-                <h1 className='text-2xl font-bold'>{selectedUser.name}</h1>
+                <div className="flex items-center gap-4 flex-1">
+                    <button onClick={onBack} className="text-2xl p-2 rounded-full hover:bg-base-200 md:hidden">
+                        <IoArrowBack />
+                    </button>
+                    <img className="h-14 w-14 rounded-full object-cover" src={selectedUser.picture} alt={selectedUser.name} />
+                    <h1 className='text-2xl font-bold'>{selectedUser.name}</h1>
+                </div>
+
+                {/* This is the DaisyUI Dropdown component */}
+                <div className="dropdown dropdown-end right-end">
+                    <label tabIndex={0} className="btn btn-ghost btn-circle">
+                        <BsThreeDotsVertical className="w-5 h-5" />
+                    </label>
+                    <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-52">
+                        <li>
+                            {/* The "Clear Chat" button and its onClick handler */}
+                            <a onClick={handleClearChat}>
+                                <MdDelete className="w-5 h-5" />
+                                Clear Chat
+                            </a>
+                        </li>
+                        {/* You can add more menu items here in the future */}
+                    </ul>
+                </div>
             </div>
 
             {/* Message List */}
@@ -203,10 +254,9 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                         <MdDelete className="cursor-pointer text-gray-400 hover:text-red-500 h-5 w-5" />
                                     </div>
                                 )}
-                                
-                                <div className={`max-w-md lg:max-w-xl p-3 rounded-2xl ${
-                                    msg.isDeleted ? 'bg-base-200' : (msg.senderId === currentUser._id ? 'bg-primary text-primary-content rounded-br-sm order-2' : 'bg-base-300 rounded-bl-sm')
-                                }`}>
+
+                                <div className={`max-w-md lg:max-w-xl p-3 rounded-2xl ${msg.isDeleted ? 'bg-base-200' : (msg.senderId === currentUser._id ? 'bg-primary text-primary-content rounded-br-sm order-2' : 'bg-base-300 rounded-bl-sm')
+                                    }`}>
                                     <p className={`${msg.isDeleted ? 'italic text-base-content/60' : ''}`}>
                                         {msg.text}
                                     </p>
@@ -216,8 +266,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                 <span>{formatMessageTimestamp(msg.timestamp)}</span>
                                 {msg.senderId === currentUser._id && !msg.isDeleted && (
                                     msg.isRead ?
-                                    <BsCheckAll className="text-green-500 w-4 h-4" /> :
-                                    <BsCheckAll className="w-4 h-4" />
+                                        <BsCheckAll className="text-green-500 w-4 h-4" /> :
+                                        <BsCheckAll className="w-4 h-4" />
                                 )}
                             </div>
                         </div>
