@@ -89,13 +89,19 @@ io.on('connection', (socket) => {
 
   socket.on('typing', (data) => {
     // thee 'data' here is the object { senderId, receiverId } from Step 1
-    io.to(data.receiverId).emit('typing', data); 
+    io.to(data.receiverId).emit('typing', data);
   });
 
   socket.on('mark-as-read', (data) => {
     // Forward the event to the contact so their UI can update
     // data should be { currentUserId, contactId }
     io.to(data.contactId).emit('messages-read', { readerId: data.currentUserId });
+  });
+
+  socket.on('deleteMessage', (data) => {
+    // Forward the deletion event to the other user
+    // data should contain { messageId, receiverId }
+    io.to(data.receiverId).emit('messageDeleted', { messageId: data.messageId });
   });
 
   socket.on('disconnect', () => {

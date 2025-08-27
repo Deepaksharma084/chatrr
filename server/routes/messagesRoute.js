@@ -77,4 +77,36 @@ router.post('/mark-read/:contactId', async (req, res) => {
     }
 });
 
+router.delete('/delete/:messageId', async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const currentUserId = req.user._id;
+
+        // Find the message
+        const message = await Message.findById(messageId);
+
+        // Security check: Ensure the message exists and was sent by the current user
+        if (!message) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+        if (message.senderId.toString() !== currentUserId.toString()) {
+            return res.status(403).json({ error: 'You can only delete your own messages' });
+        }
+
+        // Update the message instead of deleting it
+        message.text = "This message was deleted";
+        message.isDeleted = true;
+
+        const updatedMessage = await message.save();
+
+        res.status(200).json(updatedMessage);
+
+    } catch (error) {
+        console.error('Error deleting message:', error);
+        res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
+
+
 export default router;

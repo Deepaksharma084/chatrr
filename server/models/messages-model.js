@@ -6,7 +6,8 @@ const schema = new mongoose.Schema({
     text: { type: String },
     image: { type: String },
     timestamp: { type: Date, default: Date.now },
-    isRead: { type: Boolean, default: false }
+    isRead: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false }
 })
 
 export default mongoose.model('Message', schema);
