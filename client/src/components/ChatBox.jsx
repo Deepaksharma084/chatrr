@@ -263,7 +263,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                     <button onClick={onBack} className="text-2xl p-2 rounded-full hover:bg-base-200 md:hidden">
                         <IoArrowBack />
                     </button>
-                    <img onClick={() => navigate('/selected_user_profile')} className="h-14 w-14 rounded-full object-cover" src={selectedUser.picture} alt={selectedUser.name} />
+                    <img onClick={() => navigate(`/selected_user_profile/${selectedUser._id}`)}  className="h-14 w-14 rounded-full object-cover" src={selectedUser.picture} alt={selectedUser.name} />
                     <h1 className='text-2xl font-bold truncate'>{selectedUser.name}</h1>
                 </div>
 

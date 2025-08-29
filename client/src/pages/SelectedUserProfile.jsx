@@ -11,7 +11,6 @@ const ProfilePage = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const toastId = toast.loading("Fetching Profile...");
       try {
         const res = await fetch(`${API_BASE_URL}/auth/selectedUserProfile/${id}`, {
           method: 'GET',
@@ -19,15 +18,13 @@ const ProfilePage = () => {
         });
 
         if (!res.ok) {
-          toast.error("Unable to load profile.", { id: toastId });
+          toast.error("Unable to load profile.", err);
           return;
         }
-
         const data = await res.json();
         setSelectedUser(data);
-        toast.success("Profile loaded!", { id: toastId });
       } catch {
-        toast.error("Server error.", { id: toastId });
+        toast.error("Server error.", err);
       }
     };
 

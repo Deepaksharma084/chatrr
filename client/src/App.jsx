@@ -29,7 +29,7 @@ function AppContent() {
           <Route path="/" element={<GoogleAuth />} />
           <Route path="/messenger" element={<ProtectedRoute><Messenger /></ProtectedRoute>} />
           <Route path="/current_user_profile" element={<ProtectedRoute><CurrentUserProfilePage /></ProtectedRoute>} />
-          <Route path="/selected_user_profile:id" element={<ProtectedRoute><SelectedUserProfilePage /></ProtectedRoute>} />
+          <Route path="/selected_user_profile/:id" element={<ProtectedRoute><SelectedUserProfilePage /></ProtectedRoute>} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

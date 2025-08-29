@@ -83,11 +83,17 @@ router.get('/selectedUserProfile/:id', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    const selectedUserId = req.params._id
-    const selectedUser = mongoose.User.find({ _id: selectedUserId })
-    res.json(selectedUser)
+    const selectedUserId = req.params.id;
+    const selectedUser = await User.findById(selectedUserId).select('-password'); // .select('-password') i sAY is A good practice
+
+    if (!selectedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(selectedUser);
+    
   } catch (err) {
-    console.error("Error finding the selected user profile", err)
+    console.error("Error finding the selected user profile", err);
     res.status(500).json({ error: 'Failed to fetch selected user profile' });
   }
 });
