@@ -6,7 +6,6 @@ import { MdSettings, MdLogout, MdDeleteForever } from 'react-icons/md';
 import { FaUserClock } from "react-icons/fa";
 import toast from 'react-hot-toast';
 
-
 // The ProfilePage will receive the currently logged-in user as a prop form protected route
 const ProfilePage = ({ currentUser }) => {
     const navigate = useNavigate();

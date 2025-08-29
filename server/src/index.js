@@ -1,5 +1,3 @@
-// server/index.js
-
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -15,6 +13,7 @@ import { createServer } from 'http';
 import '../config/passport.js';
 import userAuthRoute from '../routes/userAuthRoute.js';
 import messagesRoute from '../routes/messagesRoute.js';
+import friendsRoute from '../routes/friendsRoute.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,7 +71,7 @@ app.use((req, res, next) => {
 
 app.use('/auth', userAuthRoute);
 app.use('/msg', messagesRoute);
-
+app.use('/friends', friendsRoute);
 
 // --- ONLINE USER TRACKING ---
 // This object will be our single source of truth for who is online.

@@ -1,3 +1,5 @@
+// client/src/pages/Contacts.jsx
+
 import { API_BASE_URL } from '../config';
 import SidebarSkeleton from './skeletons/SidebarSkeleton.jsx';
 import toast from 'react-hot-toast';
@@ -5,122 +7,138 @@ import { Users } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { useSocket } from '../context/SocketContext.jsx';
 
-export default function Contacts({ onSelectUser }) {
-    const [users, setUsers] = useState([]);
-    const [currentUser, setCurrentUser] = useState(null);
+export default function Contacts({ onSelectUser, selectedUser }) {
+    // STATE MANAGEMENT: Now tracks 'friends' instead of all 'users'
+    const [friends, setFriends] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [onlineUsers, setOnlineUsers] = useState({});
-
     const socket = useSocket();
 
+    // --- EFFECT #1: FETCH FRIENDS & HANDLE GLOBAL UPDATES ---
+    // This effect handles fetching the initial friends list and also
+    // listens for a global event to refetch when the list changes.
     useEffect(() => {
-        const fetchData = async () => {
+        // Function to fetch the user's friend list from the new API endpoint
+        const fetchFriends = async () => {
+            setIsLoading(true);
             try {
-                const res1 = await fetch(`${API_BASE_URL}/auth/check-auth`, { credentials: 'include' });
-                const data1 = await res1.json();
-                if (data1.isAuthenticated) {
-                    setCurrentUser(data1.user);
-                }
-            } catch {
-                toast.error('Failed to fetch current user');
-            }
+                const res = await fetch(`${API_BASE_URL}/friends/list`, { credentials: 'include' });
+                if (!res.ok) throw new Error('Could not fetch friends list');
 
-            try {
-                const res2 = await fetch(`${API_BASE_URL}/auth/users`, { credentials: 'include' });
-                if (!res2.ok) throw new Error('Network response was not ok');
-                const data2 = await res2.json();
-                setUsers(data2);
-            } catch {
-                toast.error('Failed to fetch users');
+                const friendsData = await res.json();
+                setFriends(friendsData);
+            } catch (err) {
+                toast.error(err.message);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchData();
-    }, []);
+        fetchFriends(); // Fetch the friends list when the component mounts
 
-    useEffect(() => {
-        if (!socket) return;
+        // This is the global listener. When the NavBar accepts a new friend,
+        // it dispatches 'friendsChanged', and this listener will trigger a refetch.
+        window.addEventListener('friendsChanged', fetchFriends);
 
-        const handleAccountDeletion = ({ deletedUserId }) => {
-            setUsers(prevUsers => prevUsers.filter(user => user._id !== deletedUserId));
-            toast(`A user has left the chat.`, { icon: '👋' });
-        };
-
-        socket.on('accountDeleted', handleAccountDeletion);
-
+        // Cleanup: remove the event listener when the component unmounts
         return () => {
-            socket.off('accountDeleted', handleAccountDeletion);
+            window.removeEventListener('friendsChanged', fetchFriends);
         };
-    }, [socket]);
+    }, []); // This effect should only run once on mount
 
-    // This useEffect will be responsible for listening to online status updates from the server.
+
+    // --- EFFECT #2: REAL-TIME SOCKET LISTENERS ---
+    // This effect is for events that specifically affect the display of contacts,
+    // like online status and account deletions.
     useEffect(() => {
         if (!socket) return;
-        
-        // Listen for the 'onlineUsers' event from the server
-        socket.on('onlineUsers', (usersArray) => {
-            // The server sends an array of online user IDs. We convert it to
-            // an object for fast lookups (O(1) vs O(n)).
+
+        // Listener for online user updates
+        const handleOnlineUsers = (usersArray) => {
             const usersObj = usersArray.reduce((acc, userId) => {
                 acc[userId] = true;
                 return acc;
             }, {});
             setOnlineUsers(usersObj);
-        });
-
-        // The cleanup function is important to prevent memory leaks
-        return () => {
-            socket.off('onlineUsers');
         };
-    }, [socket]); // Dependency on socket ensures this runs when the socket connects
 
-    // the below fun runs and return the array of users without the current user based on the condition that the current user should be true and the user id should not match the current user id
-    const filteredUsers = users.filter(user => currentUser && user._id !== currentUser._id);
+        // Listener for when any user deletes their account
+        const handleAccountDeletion = ({ deletedUserId }) => {
+            // Remove the deleted user from the friends list
+            setFriends(prevFriends => prevFriends.filter(friend => friend._id !== deletedUserId));
+            toast(`A user has left Chatrr.`, { icon: '👋' });
+        };
 
-    // Main container now uses flex and h-full to adapt
+        // Listener for when a new friend is added (to update the list in real-time)
+        const handleFriendListUpdated = (newFriend) => {
+            // Instantly add the new friend to the UI without a full refresh.
+            setFriends(prevFriends => {
+                // Prevent duplicates in case of race conditions
+                if (prevFriends.some(friend => friend._id === newFriend._id)) {
+                    return prevFriends;
+                }
+                return [...prevFriends, newFriend];
+            });
+            toast.success(`You are now friends with ${newFriend.name}!`);
+        };
 
+        // Attach listeners
+        socket.on('onlineUsers', handleOnlineUsers);
+        socket.on('accountDeleted', handleAccountDeletion);
+        socket.on('friendListUpdated', handleFriendListUpdated);
+
+        // Cleanup function
+        return () => {
+            socket.off('onlineUsers', handleOnlineUsers);
+            socket.off('accountDeleted', handleAccountDeletion);
+            socket.off('friendListUpdated', handleFriendListUpdated);
+        };
+    }, [socket]);
+
+
+    // --- JSX RENDERING ---
     if (isLoading) {
-        return (
-            <SidebarSkeleton />
-        );
+        return <SidebarSkeleton />;
     }
 
     return (
-        <div className='h-full flex flex-col shadow-lg overflow-hidden p-2'>
+        <div className='h-full flex flex-col shadow-lg overflow-hidden bg-base-200 p-2'>
+            {/* Header for the contacts list */}
             <h1 className='pl-4 py-4 text-xl flex items-center gap-2 flex-shrink-0'>
-                <Users className="w-6 h-6" />Contacts
+                <Users className="w-6 h-6" />Friends
             </h1>
 
-            {filteredUsers.length === 0 ? (
-                <div className='flex items-center justify-center h-full'>
-                    <p className='text-lg'>No contacts available</p>
+            {/* Conditional rendering based on whether the user has friends */}
+            {friends.length === 0 ? (
+                <div className='flex items-center justify-center text-center h-full p-4'>
+                    <p className='text-lg text-base-content/60'>
+                        You have no friends yet. <br />
+                        Add friends from the Friends menu in the navbar.
+                    </p>
                 </div>
             ) : (
-                // This inner div will grow and become scrollable if content overflows
                 <div className='flex flex-col p-2 rounded-lg h-full overflow-y-auto'>
-                    {filteredUsers.map(user => {
-                        // --- NEW CHECK FOR ONLINE STATUS ---
-                        const isOnline = onlineUsers[user._id];
+                    {friends.map(friend => {
+                        const isOnline = onlineUsers[friend._id];
+                        // This checks if the current friend is the one selected in the chat window
+                        const isSelected = selectedUser?._id === friend._id;
 
                         return (
                             <div
-                                key={user._id}
-                                onClick={() => onSelectUser(user)}
-                                className='flex flex-row items-center gap-4 py-3 px-4 m-1 rounded-lg hover:bg-base-300 cursor-pointer transition-colors duration-200'
+                                key={friend._id}
+                                onClick={() => onSelectUser(friend)}
+                                // Conditionally apply a different background color if this contact is selected
+                                className={`flex flex-row items-center gap-4 py-3 px-4 m-1 rounded-lg cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-primary/20' : 'hover:bg-base-300'
+                                    }`}
                             >
-                                {/* --- NEW VISUAL INDICATOR --- */}
-                                {/* We wrap the image in a container to position the online dot. */}
                                 <div className="relative">
-                                    <img className='h-12 w-12 object-cover rounded-full' src={user.picture} alt={user.name} />
+                                    <img className='h-12 w-12 object-cover rounded-full' src={friend.picture} alt={friend.name} />
                                     {isOnline && (
-                                        // This is the green dot. We position it at the bottom-right.
-                                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-base-200"></span>
+                                        <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-base-100"></span>
                                     )}
                                 </div>
-                                
-                                <p className='text-lg'>{user.name}</p>
+
+                                <p className='text-lg font-medium'>{friend.name}</p>
                             </div>
                         );
                     })}

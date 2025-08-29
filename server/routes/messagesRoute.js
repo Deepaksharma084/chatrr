@@ -45,13 +45,18 @@ router.get('/get/:receiverId', async (req, res) => {
         const currentUserId = req.user._id;
 
         const messages = await Message.find({
+            // First, find all messages in the conversation
             $or: [
                 { senderId: currentUserId, receiverId: receiverId },
                 { senderId: receiverId, receiverId: currentUserId }
             ],
-            // THIS IS THE CRITICAL FILTER:
-            // Only get messages where the `clearedBy` array does NOT include the current user's ID.
-            clearedBy: { $nin: [currentUserId] }
+            // Then, apply the critical filter for visibility
+            $or: [
+                // Condition 1: The message is visible if I have NOT cleared it.
+                { clearedBy: { $nin: [currentUserId] } },
+                // OR Condition 2: The message is ALSO visible if I HAVE starred it (overriding the clear).
+                { starredBy: { $in: [currentUserId] } }
+            ]
         }).sort({ timestamp: 1 });
 
         res.json(messages);
@@ -88,21 +93,21 @@ router.delete('/delete/:messageId', async (req, res) => {
         const currentUserId = req.user._id;
 
         // Find the message
-        const message = await Message.findById(messageId);
-
-        // Security check: Ensure the message exists and was sent by the current user
-        if (!message) {
-            return res.status(404).json({ error: 'Message not found' });
-        }
-        if (message.senderId.toString() !== currentUserId.toString()) {
-            return res.status(403).json({ error: 'You can only delete your own messages' });
-        }
-
-        // Update the message instead of deleting it
-        message.text = "This message was deleted";
-        message.isDeleted = true;
-
-        const updatedMessage = await message.save();
+        const updatedMessage = await Message.findByIdAndUpdate(
+            messageId,
+            {
+                // Set the new values for these fields...
+                $set: {
+                    text: "This message was deleted",
+                    isDeleted: true
+                },
+                // AND pull/remove the current user's ID from the `starredBy` array.
+                $pull: {
+                    starredBy: currentUserId
+                }
+            },
+            { new: true } // This option returns the updated document
+        );
 
         res.status(200).json(updatedMessage);
 
@@ -121,26 +126,56 @@ router.post('/clear/:contactId', async (req, res) => {
             $or: [
                 { senderId: currentUserId, receiverId: contactId },
                 { senderId: contactId, receiverId: currentUserId }
-            ]
+            ],
+            // CRITICAL ADDITION: Never affect messages starred by the current user.
+            starredBy: { $nin: [currentUserId] }
         };
 
-        // Stage 1: Mark messages as cleared by the current user.
+        // Stage 1: Add user's ID to the `clearedBy` array for all non-starred messages.
         await Message.updateMany(
             conversationFilter,
             { $addToSet: { clearedBy: currentUserId } }
         );
 
-        // Stage 2: After marking, find and delete any messages that have now been
-        // cleared by BOTH users involved in the conversation.
+        // Stage 2: Delete messages only if BOTH users have cleared them AND no one has starred them.
         await Message.deleteMany({
-            ...conversationFilter,
-            clearedBy: { $all: [currentUserId, contactId] }
+            ...conversationFilter, // This already excludes starred messages
+            clearedBy: { $all: [currentUserId, contactId] },
+            starredBy: { $size: 0 } // Extra safety: only delete if NO ONE has starred it.
         });
 
         res.status(200).json({ message: 'Chat cleared successfully' });
-
     } catch (error) {
         res.status(500).json({ error: 'Failed to clear chat' });
+    }
+});
+
+router.post('/star/:messageId', async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const currentUserId = req.user._id;
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        // Check if the user's ID is already in the `starredBy` array
+        const userIndex = message.starredBy.indexOf(currentUserId);
+
+        if (userIndex > -1) {
+            // If it exists, remove it (unstar)
+            message.starredBy.splice(userIndex, 1);
+        } else {
+            // If it doesn't exist, add it (star)
+            message.starredBy.push(currentUserId);
+        }
+
+        const updatedMessage = await message.save();
+        res.status(200).json(updatedMessage);
+
+    } catch (error) {
+        res.status(500).json({ error: "Failed to update star status" });
     }
 });
 

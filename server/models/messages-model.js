@@ -11,6 +11,10 @@ const schema = new mongoose.Schema({
     clearedBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    starredBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }]
 })
 

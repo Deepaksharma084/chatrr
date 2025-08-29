@@ -2,6 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import User from '../models/users-model.js';
 import Message from '../models/messages-model.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -74,6 +75,20 @@ router.post('/delete', async (req, res) => {
   } catch (err) {
     console.error("Error deleting account:", err);
     res.status(500).json({ error: 'Failed to delete account and associated data' });
+  }
+});
+
+router.get('/selectedUserProfile/:id', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  try {
+    const selectedUserId = req.params._id
+    const selectedUser = mongoose.User.find({ _id: selectedUserId })
+    res.json(selectedUser)
+  } catch (err) {
+    console.error("Error finding the selected user profile", err)
+    res.status(500).json({ error: 'Failed to fetch selected user profile' });
   }
 });
 
