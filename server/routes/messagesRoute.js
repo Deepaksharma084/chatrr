@@ -117,6 +117,30 @@ router.delete('/delete/:messageId', async (req, res) => {
     }
 });
 
+router.post('/hide/:messageId', async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const currentUserId = req.user._id;
+
+        // Perform an atomic update with TWO operations:
+        // 1. $addToSet: Add the user to the clearedBy array (hides the message).
+        // 2. $pull: Remove the user from the starredBy array (ensures it STAYS hidden).
+        await Message.findByIdAndUpdate(
+            messageId,
+            {
+                $addToSet: { clearedBy: currentUserId }, // This hides the message
+                $pull: { starredBy: currentUserId }      // This removes the star, making the hide permanent
+            }
+        );
+
+        res.status(200).json({ message: 'Message hidden successfully' });
+
+    } catch (error) {
+        console.error('Error hiding message:', error);
+        res.status(500).json({ error: 'Failed to hide message' });
+    }
+});
+
 router.post('/clear/:contactId', async (req, res) => {
     try {
         const { contactId } = req.params;
