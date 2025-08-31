@@ -27,15 +27,6 @@ router.get('/logout', (req, res, next) => {
   });
 });
 
-router.get('/users', async (req, res) => {
-  try {
-    const users = await User.find({ googleId: { $exists: true, $ne: null } });
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
 router.get('/check-auth', (req, res) => {
   if (req.isAuthenticated()) {
     res.json({ isAuthenticated: true, user: req.user });

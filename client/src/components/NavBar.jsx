@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { MdLogout, MdDelete } from "react-icons/md";
 import { CgProfile } from "react-icons/cg";
 import { MdOutlineSettingsSuggest } from "react-icons/md";
-// --- NEW ICONS ---
 import { FaUserFriends } from "react-icons/fa";
 import { UserPlus, UserCheck, UserX } from "lucide-react";
+import toast from "react-hot-toast";
 
 
 export default function NavBar() {
@@ -61,7 +61,10 @@ export default function NavBar() {
                 body: JSON.stringify({ recipientEmail: addFriendEmail })
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error);
+             if (!res.ok) {
+                // `data.error` will contain "User not found", "Already friends", etc.
+                throw new Error(data.error || 'An unknown error occurred');
+            }
             toast.success('Friend request sent!');
             setAddFriendEmail("");
         } catch (err) {
@@ -120,7 +123,7 @@ export default function NavBar() {
 
                     {/* --- NEW FRIEND REQUEST DROPDOWN --- */}
                     <li className="dropdown dropdown-end">
-                        <label ref={dropdownRef} tabIndex={0} className="btn btn-ghost">
+                        <label ref={dropdownRef} tabIndex={0} className="btn rounded-xl btn-ghost">
                             <FaUserFriends className="w-5 h-5" />
                             <span className="hidden md:inline ml-1">Friends</span>
                             {friendRequests.length > 0 && (
@@ -169,19 +172,19 @@ export default function NavBar() {
                     {/* --- END OF NEW DROPDOWN --- */}
 
                     <li>
-                        <a className='flex items-center gap-2' onClick={() => navigate('/current_user_profile')}>
+                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/current_user_profile')}>
                             <CgProfile />
                             <span>profile</span>
                         </a>
                     </li>
                     <li>
-                        <a className='flex items-center gap-2' onClick={() => navigate('/settings')}>
+                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/settings')}>
                             <MdOutlineSettingsSuggest />
                             <span>Settings</span>
                         </a>
                     </li>
                     <li>
-                        <a className='flex items-center gap-2' onClick={handleLogout}>
+                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={handleLogout}>
                             <MdLogout />
                             <span>Logout</span>
                         </a>

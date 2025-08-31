@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { API_BASE_URL } from '../config';
 import { FaUserClock } from "react-icons/fa";
+import { GiHighKick } from "react-icons/gi";
 import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
   const { id } = useParams();
   const [selectedUser, setSelectedUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -24,12 +26,34 @@ const ProfilePage = () => {
         const data = await res.json();
         setSelectedUser(data);
       } catch {
-        toast.error("Server error.", err);
+        toast.error("Server error.");
       }
     };
 
     fetchProfile();
   }, [id]);
+
+  const handleUnFriend = async (id) => {
+    if (!confirm("Are you sure you want to unfriend?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/friends/unfriend/${id}`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        toast.error("Unable to unfriend.");
+        return;
+      }
+      toast.success("Unfriend successful");
+      //---Dispatch the event to tell Contacts.jsx to refetch ---
+      window.dispatchEvent(new Event('friendsChanged'));
+      navigate("/messenger");
+    } catch (err) {
+      toast.error("Internal server error.");
+    }
+  };
 
   if (!selectedUser) return <p className="text-center">Loading...</p>;
 
@@ -46,11 +70,16 @@ const ProfilePage = () => {
         <div className="card-body items-center text-center">
           <h2 className="card-title text-3xl">{selectedUser.name}</h2>
           <p className="text-base-content/70">{selectedUser.email}</p>
-          <div className="flex items-center gap-2 mt-4 text-sm text-base-content/60">
-            <FaUserClock />
-            <span>
-              Member since {format(new Date(selectedUser.createdAt), 'MMMM d, yyyy')}
-            </span>
+          <div className="flex items-center gap-2 mt-4 text-sm">
+            <div className='flex flex-col items-center justify-center gap-4'>
+              <span className='flex gap-2 items-center justify-center text-base-content/60'>
+                <FaUserClock />
+                Member since {format(new Date(selectedUser.createdAt), 'MMMM d, yyyy')}
+              </span>
+              <span onClick={() => { handleUnFriend(selectedUser._id) }} className='flex gap-2 items-center justify-center text-xl p-2 bg-base-300 rounded-xl text-base-content/80 btn'>
+                <GiHighKick /> Unfriend
+              </span>
+            </div>
           </div>
         </div>
       </div>

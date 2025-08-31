@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/users-model.js';
+import Message from '../models/messages-model.js';
 
 const router = express.Router();
 const isAuthenticated = (req, res, next) => {
@@ -19,8 +20,15 @@ router.post('/send-request', async (req, res) => {
         // --- VALIDATION ---
         if (!recipient) return res.status(404).json({ error: 'User with that email not found' });
         if (recipient._id.equals(senderId)) return res.status(400).json({ error: 'You cannot send a friend request to yourself' });
-        if (req.user.friends.includes(recipient._id)) return res.status(400).json({ error: 'You are already friends with this user' });
-        if (req.user.friendRequestsSent.includes(recipient._id)) return res.status(400).json({ error: 'Friend request already sent' });
+        if (req.user.friends.some(friendId => friendId.equals(recipient._id))) {
+            return res.status(400).json({ error: 'You are already friends with this user' });
+        }
+        if (req.user.friendRequestsSent.some(reqId => reqId.equals(recipient._id))) {
+            return res.status(400).json({ error: 'Friend request already sent' });
+        }
+        if (req.user.friendRequestsReceived.some(reqId => reqId.equals(recipient._id))) {
+             return res.status(400).json({ error: 'This user has already sent you a request' });
+        }
 
         // --- UPDATE BOTH USERS ---
         // Use Promise.all to update both documents in parallel for efficiency
@@ -111,13 +119,42 @@ router.get('/requests', async (req, res) => {
 });
 
 
-// 5. GET THE USER'S FRIEND LIST (replaces the old /auth/users endpoint)
+// 5. GET THE USER'S FRIEND LIST
 router.get('/list', async (req, res) => {
     try {
         const user = await User.findById(req.user._id).populate('friends', 'name picture email');
         res.status(200).json(user.friends);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch friends' });
+    }
+});
+
+// 6. UNFRIEND A USER
+router.post('/unfriend/:friendId', async (req, res) => {
+    try {
+        const { friendId } = req.params;
+        const userId = req.user._id;
+
+        // --- Using Promise.all to perform all database operations concurrently ---
+        await Promise.all([
+            // Operation 1: Remove friendId from the current user's friend list
+            User.findByIdAndUpdate(userId, { $pull: { friends: friendId } }),
+
+            // Operation 2: Remove the current user's ID from the friend's list
+            User.findByIdAndUpdate(friendId, { $pull: { friends: userId } }),
+
+            // --- STEP 3: Delete the entire conversation between the two users ---
+            Message.deleteMany({
+                $or: [
+                    { senderId: userId, receiverId: friendId },
+                    { senderId: friendId, receiverId: userId }
+                ]
+            })
+        ]);
+
+        res.status(200).json(User.friends);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to unfriend' });
     }
 });
 
