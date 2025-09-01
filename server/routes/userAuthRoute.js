@@ -2,7 +2,6 @@ import express from 'express';
 import passport from 'passport';
 import User from '../models/users-model.js';
 import Message from '../models/messages-model.js';
-import mongoose from 'mongoose';
 
 const router = express.Router();
 

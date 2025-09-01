@@ -1,18 +1,15 @@
 import React, { useState, useEffect,useRef } from 'react';
 import { API_BASE_URL } from '../config';
 import { useNavigate } from 'react-router-dom';
-import { MdLogout, MdDelete } from "react-icons/md";
+import { MdLogout } from "react-icons/md";
 import { CgProfile } from "react-icons/cg";
 import { MdOutlineSettingsSuggest } from "react-icons/md";
 import { FaUserFriends } from "react-icons/fa";
 import { UserPlus, UserCheck, UserX } from "lucide-react";
 import toast from "react-hot-toast";
 
-
 export default function NavBar() {
     const navigate = useNavigate();
-
-    // --- NEW STATE for the friend request dropdown ---
     const [friendRequests, setFriendRequests] = useState([]);
     const [addFriendEmail, setAddFriendEmail] = useState("");
 
@@ -33,8 +30,7 @@ export default function NavBar() {
 
     // This effect runs on component mount AND whenever our custom event is dispatched.
     useEffect(() => {
-        fetchFriendRequests(); // Fetch initially
-
+        fetchFriendRequests();
         // Listen for the custom event dispatched by our socket hook
         window.addEventListener('friendRequestsChanged', fetchFriendRequests);
 
@@ -117,13 +113,13 @@ export default function NavBar() {
 
     return (
         <>
-            <nav className="navbar bg-base-200 px-4 md:px-8 py-3 flex justify-between items-center">
+            <nav className="navbar bg-base-200 px-4 md:px-8 py-2 flex justify-between items-center">
                 <h1 onClick={() => navigate('/messenger')} className='text-3xl cursor-pointer'>Chatrr</h1>
-                <ul className="nav-links flex items-center justify-center gap-4 md:gap-8">
+                <ul className="nav-links flex items-center justify-center gap-4 md:gap-6">
 
-                    {/* --- NEW FRIEND REQUEST DROPDOWN --- */}
+                    {/* ---FRIEND REQUEST DROPDOWN --- */}
                     <li className="dropdown dropdown-end">
-                        <label ref={dropdownRef} tabIndex={0} className="btn rounded-xl btn-ghost">
+                        <label ref={dropdownRef} tabIndex={0} className="btn text-lg rounded-xl btn-ghost">
                             <FaUserFriends className="w-5 h-5" />
                             <span className="hidden md:inline ml-1">Friends</span>
                             {friendRequests.length > 0 && (
@@ -169,22 +165,21 @@ export default function NavBar() {
                             </div>
                         </div>
                     </li>
-                    {/* --- END OF NEW DROPDOWN --- */}
 
                     <li>
-                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/current_user_profile')}>
+                        <a className='flex text-lg items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/current_user_profile')}>
                             <CgProfile />
                             <span>profile</span>
                         </a>
                     </li>
                     <li>
-                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/settings')}>
+                        <a className='flex text-lg items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/settings')}>
                             <MdOutlineSettingsSuggest />
                             <span>Settings</span>
                         </a>
                     </li>
                     <li>
-                        <a className='flex items-center gap-2 btn rounded-xl btn-ghost' onClick={handleLogout}>
+                        <a className='flex text-lg items-center gap-2 btn rounded-xl btn-ghost' onClick={handleLogout}>
                             <MdLogout />
                             <span>Logout</span>
                         </a>

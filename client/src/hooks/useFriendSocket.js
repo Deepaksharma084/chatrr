@@ -1,4 +1,3 @@
-// client/src/hooks/useFriendSocket.js
 import { useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
@@ -13,8 +12,7 @@ const useFriendSocket = () => {
         const handleNewFriendRequest = (senderInfo) => {
             toast.success(`${senderInfo.name} sent you a friend request!`);
             
-            // --- NEW ---
-            // Dispatch a custom event to tell any listening component (like our NavBar)
+            // Dispatch a custom event to tell any listening component (like NavBar)
             // that the friend requests have changed and should be refetched.
             window.dispatchEvent(new Event('friendRequestsChanged'));
         };

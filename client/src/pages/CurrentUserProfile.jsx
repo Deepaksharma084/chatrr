@@ -48,7 +48,6 @@ const ProfilePage = ({ currentUser }) => {
             {/* DaisyUI Card Component */}
             <div className="card rounded-2xl w-full max-w-md bg-base-100 shadow-xl">
                 <figure className="px-10 pt-10">
-                    {/* User's Google Profile Picture */}
                     <img 
                         src={currentUser.picture} 
                         alt={`${currentUser.name}'s profile picture`} 
@@ -56,12 +55,8 @@ const ProfilePage = ({ currentUser }) => {
                     />
                 </figure>
                 <div className="card-body items-center text-center">
-                    {/* User's Name */}
                     <h2 className="card-title text-3xl">{currentUser.name}</h2>
-                    {/* User's Email */}
                     <p className="text-base-content/70">{currentUser.email}</p>
-                    
-                    {/* Member Since Date */}
                     <div className="flex items-center gap-2 mt-4 text-sm text-base-content/60">
                         <FaUserClock />
                         <span>

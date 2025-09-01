@@ -1,5 +1,3 @@
-// client/src/App.jsx
-
 import React from 'react';
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
@@ -15,10 +13,7 @@ import { SocketProvider } from './context/SocketContext';
 import { getTheme } from './utils/themeStorage.js';
 import useFriendSocket from './hooks/useFriendSocket';
 
-// STEP 1: Create a new component that holds all your UI.
-// This component will live *inside* the SocketProvider.
 function AppContent() {
-  // ✅ Now this hook is called correctly from INSIDE the provider's scope.
   useFriendSocket();
 
   return (
@@ -49,7 +44,6 @@ function App() {
       <SocketProvider>
         <Toaster position="top-center" reverseOrder={false} />
 
-        {/* STEP 2: Render your new AppContent component here. */}
         <AppContent />
 
       </SocketProvider>
