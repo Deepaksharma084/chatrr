@@ -31,7 +31,7 @@ router.post('/send-request', async (req, res) => {
         }
 
         // --- UPDATE BOTH USERS ---
-        // Use Promise.all to update both documents in parallel for efficiency
+        // Using Promise.all to update both documents in parallel for efficiency
         await Promise.all([
             User.findByIdAndUpdate(senderId, { $addToSet: { friendRequestsSent: recipient._id } }),
             User.findByIdAndUpdate(recipient._id, { $addToSet: { friendRequestsReceived: senderId } })
@@ -55,7 +55,7 @@ router.post('/send-request', async (req, res) => {
 router.post('/accept-request/:requesterId', async (req, res) => {
     try {
         const { requesterId } = req.params;
-        const recipient = req.user; // The person accepting the request
+        const recipient = req.user;
 
         const requester = await User.findById(requesterId);
         if (!requester) {
@@ -157,6 +157,5 @@ router.post('/unfriend/:friendId', async (req, res) => {
         res.status(500).json({ error: 'Failed to unfriend' });
     }
 });
-
 
 export default router;

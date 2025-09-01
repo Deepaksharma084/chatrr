@@ -93,7 +93,6 @@ io.on('connection', (socket) => {
     // Broadcast the updated list of online users to EVERYONE.
     io.emit('onlineUsers', Object.keys(onlineUsers));
     console.log('[JOIN] Online users:', Object.keys(onlineUsers));
-    // --- END: ONLINE STATUS LOGIC (ADD USER) ---
   });
 
   // Listener for when a client sends a new message.
@@ -128,7 +127,6 @@ io.on('connection', (socket) => {
       io.emit('onlineUsers', Object.keys(onlineUsers));
       console.log('[DISCONNECT] Online users:', Object.keys(onlineUsers));
     }
-    // --- END: ONLINE STATUS LOGIC (REMOVE USER) ---
   });
 });
 

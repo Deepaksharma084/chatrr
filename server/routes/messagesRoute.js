@@ -18,7 +18,6 @@ router.post('/create', async (req, res) => {
     try {
         const { senderId, receiverId, text, image } = req.body;
 
-        // Validate required fields
         if (!senderId || !receiverId || !text) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -50,7 +49,7 @@ router.get('/get/:receiverId', async (req, res) => {
                 { senderId: currentUserId, receiverId: receiverId },
                 { senderId: receiverId, receiverId: currentUserId }
             ],
-            // Then, apply the critical filter for visibility
+            //critical filter for visibility
             $or: [
                 // Condition 1: The message is visible if I have NOT cleared it.
                 { clearedBy: { $nin: [currentUserId] } },
@@ -151,7 +150,6 @@ router.post('/clear/:contactId', async (req, res) => {
                 { senderId: currentUserId, receiverId: contactId },
                 { senderId: contactId, receiverId: currentUserId }
             ],
-            // CRITICAL ADDITION: Never affect messages starred by the current user.
             starredBy: { $nin: [currentUserId] }
         };
 
@@ -163,7 +161,7 @@ router.post('/clear/:contactId', async (req, res) => {
 
         // Stage 2: Delete messages only if BOTH users have cleared them AND no one has starred them.
         await Message.deleteMany({
-            ...conversationFilter, // This already excludes starred messages
+            ...conversationFilter,
             clearedBy: { $all: [currentUserId, contactId] },
             starredBy: { $size: 0 } // Extra safety: only delete if NO ONE has starred it.
         });

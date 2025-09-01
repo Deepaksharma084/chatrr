@@ -1,4 +1,3 @@
-// client/src/components/ProtectedRoute.jsx
 import React from 'react';
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
