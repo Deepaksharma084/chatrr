@@ -4,8 +4,8 @@ import { IoMdSend } from "react-icons/io";
 import { BsCheckAll } from "react-icons/bs";
 import toast from "react-hot-toast";
 import { useSocket } from "../context/SocketContext";
-import { IoArrowBack } from "react-icons/io5";
 import { AiFillCloseCircle } from "react-icons/ai";
+import { FaImage } from "react-icons/fa6";
 import { MdDelete } from "react-icons/md";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { FaStar, FaRegStar } from "react-icons/fa";
@@ -20,8 +20,11 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
 
     const [messages, setMessages] = useState([]);
     const [messageText, setMessageText] = useState("");
+    const [imageToSend, setImageToSend] = useState(null); // { file: File, preview: string }
+    const [isUploading, setIsUploading] = useState(false);
     const socket = useSocket();
     const messagesEndRef = useRef(null);
+    const fileInputRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isTyping, setIsTyping] = useState(false);
     const typingTimeoutRef = useRef(null);
@@ -77,7 +80,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             }
         };
         const handleMessageDeleted = ({ messageId }) => {
-            setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, text: "This message was deleted", isDeleted: true } : msg));
+            setMessages(prev => prev.map(msg => msg._id === messageId ? { ...msg, text: "This message was deleted", isDeleted: true, image: null } : msg));
         };
         socket.on('receiveMessage', handleReceiveMessage);
         socket.on('messages-read', handleMessagesRead);
@@ -142,40 +145,77 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         }
     };
 
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const previewUrl = URL.createObjectURL(file);
+            setImageToSend({ file, preview: previewUrl });
+        }
+        e.target.value = null; // Allow selecting the same file again
+    };
+
+    const handleCancelImageSend = () => {
+        if (imageToSend?.preview) {
+            URL.revokeObjectURL(imageToSend.preview);
+        }
+        setImageToSend(null);
+    };
+
     const handleSendMsg = async (e) => {
         e.preventDefault();
-        if (!messageText.trim()) return;
+        if (!messageText.trim() && !imageToSend) return;
 
-        const tempId = `temp_${Date.now()}`;
-        const messageData = {
-            _id: tempId,
-            senderId: currentUser._id,
-            receiverId: selectedUser._id,
-            text: messageText.trim(),
-            isRead: false,
-            isDeleted: false,
-            timestamp: new Date().toISOString()
-        };
-
-        setMessages(prev => [...prev, messageData]);
-        setMessageText("");
+        setIsUploading(true);
+        let imageUrl = null;
 
         try {
+            // Step 1: Upload image to Cloudinary if it exists
+            if (imageToSend) {
+                const formData = new FormData();
+                formData.append('file', imageToSend.file);
+                // IMPORTANT: Create an "unsigned" upload preset in your Cloudinary account
+                // and name it "chatrr_unsigned" or update the name here.
+                formData.append('upload_preset', 'chatrr_unsigned');
+
+                const res = await fetch(`https://api.cloudinary.com/v1_1/djbw8glgb/image/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) throw new Error('Image upload failed');
+                const data = await res.json();
+                imageUrl = data.secure_url;
+            }
+
+            // Step 2: Prepare message data and send to backend
+            const messagePayload = {
+                senderId: currentUser._id,
+                receiverId: selectedUser._id,
+                text: messageText.trim(),
+                image: imageUrl
+            };
+
             const res = await fetch(`${API_BASE_URL}/msg/create`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senderId: messageData.senderId, receiverId: messageData.receiverId, text: messageData.text })
+                body: JSON.stringify(messagePayload)
             });
             const savedMessage = await res.json();
             if (!res.ok) throw new Error('Failed to send message');
 
-            setMessages(prev => prev.map(msg => msg._id === tempId ? savedMessage : msg));
+            // Step 3: Update UI and emit socket event
+            setMessages(prev => [...prev, savedMessage]);
             socket.emit('sendMessage', savedMessage);
 
+            // Step 4: Clean up form state
+            setMessageText("");
+            handleCancelImageSend();
+
         } catch (err) {
-            toast.error('Could not send message.');
-            setMessages(prev => prev.filter(msg => msg._id !== tempId));
+            toast.error(err.message || 'Could not send message.');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -187,6 +227,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                     ...msg,
                     text: "This message was deleted",
                     isDeleted: true,
+                    image: null, // Also clear image on delete
                     starredBy: msg.starredBy?.filter(id => id !== currentUser._id)
                 };
             }
@@ -208,10 +249,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         }
     };
 
-    //function to hide a friend's message just for current user
     const handleHideFriendsMessage = async (messageId) => {
         const originalMessages = [...messages];
-        // Optimistically remove the message from view immediately
         setMessages(prev => prev.filter(msg => msg._id !== messageId));
 
         try {
@@ -222,12 +261,10 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             if (!res.ok) throw new Error('Server failed to hide message');
         } catch (err) {
             toast.error('Could not hide message.');
-            // Revert on failure
             setMessages(originalMessages);
         }
     };
 
-    //dispatcher function that decides which delete/hide action to take
     const handleDeleteClick = (message) => {
         if (message.senderId === currentUser._id) {
             if (!confirm('Are you sure you want to delete this message? This will be deleted for everyone.')) return;
@@ -237,7 +274,6 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             handleHideFriendsMessage(message._id);
         }
     }
-
 
     if (!selectedUser) {
         return (
@@ -276,31 +312,26 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
 
             {/* Message List */}
             <div className="flex-grow w-full overflow-y-auto p-4">
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                     {messages.map((msg) => {
                         const isStarredByUser = msg.starredBy?.includes(currentUser._id);
-                        const isMyMessage = msg.senderId === currentUser._id;
+                        const isMyMessage = msg.senderId.toString() === currentUser._id.toString();
+                        const hasContent = msg.text || msg.image;
 
                         return (
-                            <div key={msg._id} className={`flex flex-col ${isMyMessage ? 'items-end' : 'items-start'}`}>
-                                <div className={`flex items-center gap-2 group ${isMyMessage ? 'flex-row' : 'flex-row-reverse'}`}>
+                            <div key={msg._id} className={`flex flex-col w-full ${isMyMessage ? 'items-end' : 'items-start'}`}>
+                                <div className={`flex items-center gap-2 group max-w-[70%] lg:max-w-[60%] ${isMyMessage ? 'flex-row' : 'flex-row-reverse'}`}>
 
-                                    {/* Star Icon: appears on ALL non-deleted messages */}
-                                    {!msg.isDeleted && (
+                                    {!msg.isDeleted && hasContent && (
                                         <div
                                             className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                             onClick={() => handleToggleStar(msg._id)}
                                         >
-                                            {isStarredByUser ? (
-                                                <FaStar className="cursor-pointer text-yellow-400 h-4 w-4" title="Unstar message" />
-                                            ) : (
-                                                <FaRegStar className="cursor-pointer text-gray-400 hover:text-yellow-400 h-4 w-4" title="Star message" />
-                                            )}
+                                            {isStarredByUser ? <FaStar className="cursor-pointer text-yellow-400 h-4 w-4" title="Unstar message" /> : <FaRegStar className="cursor-pointer text-gray-400 hover:text-yellow-400 h-4 w-4" title="Star message" />}
                                         </div>
                                     )}
 
-                                    {/* Delete Icon:appears on ALL non-deleted messages and calls the dispatcher */}
-                                    {!msg.isDeleted && (
+                                    {!msg.isDeleted && hasContent && (
                                         <div
                                             className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                             onClick={() => handleDeleteClick(msg)}
@@ -309,9 +340,16 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                         </div>
                                     )}
 
-                                    {/* The Message Bubble Itself*/}
-                                    <div className={`max-w-md lg:max-w-xl p-3 rounded-2xl ${msg.isDeleted ? 'bg-base-200' : (isMyMessage ? 'bg-primary text-primary-content rounded-br-sm' : 'bg-base-300 rounded-bl-sm')}`}>
-                                        <p className={`${msg.isDeleted ? 'italic text-base-content/60' : ''}`}>{msg.text}</p>
+                                    <div className={`flex flex-col gap-1 w-full p-2 rounded-2xl ${msg.isDeleted ? 'bg-base-200' : (isMyMessage ? 'bg-primary text-primary-content rounded-br-sm' : 'bg-base-300 rounded-bl-sm')}`}>
+                                        {msg.image && !msg.isDeleted && (
+                                            <a href={msg.image} target="_blank" rel="noopener noreferrer">
+                                                <img src={msg.image} alt="Sent content" className="rounded-lg w-full object-cover" />
+                                            </a>
+                                        )}
+                                        {msg.text && (
+                                            <p className={`break-words ${msg.isDeleted ? 'italic text-base-content/60' : ''}`}>{msg.text}</p>
+                                        )
+                                        }
                                     </div>
                                 </div>
                                 <div className="text-xs text-base-400 opacity-50 mt-1 px-1 flex items-center gap-1">
@@ -328,7 +366,6 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                     })}
                 </div>
 
-                {/* Typing Indicator and Ref */}
                 {isTyping && (
                     <div className="flex flex-col items-start mt-2 p-4 pt-0">
                         <div className="max-w-md lg:max-w-xl p-3 rounded-2xl bg-base-300 rounded-bl-sm">
@@ -339,12 +376,30 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input Form */}
-            <div className="flex-shrink-0 w-full p-4 bg-base-200">
-                <form onSubmit={handleSendMsg} className="flex gap-2">
+            {/* Image Preview and Message Input Form */}
+            <div className="flex-shrink-0 w-full bg-base-200">
+                {imageToSend && (
+                    <div className="p-4 border-t border-base-300 flex justify-center">
+                        <div className="relative">
+                            <img src={imageToSend.preview} alt="Preview" className="max-h-40 rounded-lg object-contain" />
+                            <button
+                                onClick={handleCancelImageSend}
+                                className="absolute -top-2 -right-2 text-2xl text-gray-300 bg-gray-800 rounded-full hover:text-white"
+                                title="Cancel image"
+                            >
+                                <AiFillCloseCircle />
+                            </button>
+                        </div>
+                    </div>
+                )}
+                <form onSubmit={handleSendMsg} className="flex gap-2 items-center justify-center p-4">
+                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} style={{ display: 'none' }} accept="image/*" />
+                    <div onClick={() => fileInputRef.current.click()} className="p-3 rounded-lg bg-base-300 text-xl text-primary cursor-pointer hover:bg-base-400">
+                        <FaImage />
+                    </div>
                     <input type="text" value={messageText} onChange={handleInputChange} placeholder="Type a message..." className="flex-1 input input-bordered w-full" />
-                    <button type="submit" className='btn btn-primary text-2xl px-4 py-2 rounded-lg' disabled={!messageText.trim()}>
-                        <IoMdSend />
+                    <button type="submit" className={`btn btn-primary text-2xl px-4 py-2 rounded-lg ${isUploading ? 'loading' : ''}`} disabled={(!messageText.trim() && !imageToSend) || isUploading}>
+                        {!isUploading && <IoMdSend />}
                     </button>
                 </form>
             </div>

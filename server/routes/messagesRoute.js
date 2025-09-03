@@ -18,14 +18,15 @@ router.post('/create', async (req, res) => {
     try {
         const { senderId, receiverId, text, image } = req.body;
 
-        if (!senderId || !receiverId || !text) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // A message must have either text or an image to be valid.
+        if (!senderId || !receiverId || (!text && !image)) {
+            return res.status(400).json({ error: 'Missing required fields or message content' });
         }
 
         const newMessage = new Message({
             senderId,
             receiverId,
-            text,
+            text: text || "", // Ensure text is at least an empty string
             image
         });
 
@@ -98,7 +99,8 @@ router.delete('/delete/:messageId', async (req, res) => {
                 // Set the new values for these fields...
                 $set: {
                     text: "This message was deleted",
-                    isDeleted: true
+                    isDeleted: true,
+                    image: null // Also remove the image URL
                 },
                 // AND pull/remove the current user's ID from the `starredBy` array.
                 $pull: {

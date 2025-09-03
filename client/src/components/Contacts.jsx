@@ -119,20 +119,20 @@ export default function Contacts({ onSelectUser, selectedUser }) {
             </h1>
 
             <div ref={searchContainerRef} className="relative mx-1">
-                <form className={styles.searchForm} onSubmit={(e) => e.preventDefault()}>
-                    <label htmlFor="search" className={styles.searchLabel}>Search friends</label>
-                    <input
-                        required=""
-                        type="search"
-                        className={`${styles.searchInput} !bg-base-300 !text-base-content`}
-                        id="search"
-                        placeholder="Search friends"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onFocus={() => setIsSearchFocused(true)}
-                    />
-                    <span className={styles.searchCaret}></span>
-                </form>
+                    <form className={styles.searchForm} onSubmit={(e) => e.preventDefault()}>
+                        <label htmlFor="search" className={styles.searchLabel}>Search friends</label>
+                        <input
+                            required=""
+                            type="search"
+                            className={`${styles.searchInput} !bg-base-300 !text-base-content !w-full !rounded-xl`}
+                            id="search"
+                            placeholder="Search friends"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onFocus={() => setIsSearchFocused(true)}
+                        />
+                        <span className={styles.searchCaret}></span>
+                    </form>
 
                 {isSearchFocused && searchTerm && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-base-100 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto">
@@ -166,7 +166,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                 ) : (
                     <div className='flex flex-col p-2 rounded-lg h-full overflow-y-auto mt-2'>
                         {friends.map(friend => {
-                            const isOnline = onlineUsers[friend._id]; 
+                            const isOnline = onlineUsers[friend._id];
                             const isSelected = selectedUser?._id === friend._id;
 
                             return (
@@ -189,7 +189,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                     </div>
                 )
             ) : (
-                 <div className='flex-grow pt-4'>
+                <div className='flex-grow pt-4'>
                     <p className='text-center text-base-content/50 italic'>
                         Showing search results...
                     </p>

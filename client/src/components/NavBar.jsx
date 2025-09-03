@@ -169,7 +169,7 @@ export default function NavBar() {
                     <li>
                         <a className='flex text-lg items-center gap-2 btn rounded-xl btn-ghost' onClick={() => navigate('/current_user_profile')}>
                             <CgProfile />
-                            <span>profile</span>
+                            <span>Profile</span>
                         </a>
                     </li>
                     <li>
