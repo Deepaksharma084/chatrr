@@ -11,7 +11,7 @@ const isAuthenticated = (req, res, next) => {
     res.status(401).json({ error: 'Not authenticated' });
 };
 
-// Apply authentication check to all message routes
+// Appling authentication check to all message routes
 router.use(isAuthenticated);
 
 router.post('/create', async (req, res) => {
@@ -26,7 +26,7 @@ router.post('/create', async (req, res) => {
         const newMessage = new Message({
             senderId,
             receiverId,
-            text: text || "", // Ensure text is at least an empty string
+            text: text || "",
             image
         });
 
@@ -45,12 +45,10 @@ router.get('/get/:receiverId', async (req, res) => {
         const currentUserId = req.user._id;
 
         const messages = await Message.find({
-            // First, find all messages in the conversation
             $or: [
                 { senderId: currentUserId, receiverId: receiverId },
                 { senderId: receiverId, receiverId: currentUserId }
             ],
-            //critical filter for visibility
             $or: [
                 // Condition 1: The message is visible if I have NOT cleared it.
                 { clearedBy: { $nin: [currentUserId] } },
@@ -96,11 +94,11 @@ router.delete('/delete/:messageId', async (req, res) => {
         const updatedMessage = await Message.findByIdAndUpdate(
             messageId,
             {
-                // Set the new values for these fields...
+                // Setting the new values for these fields...
                 $set: {
                     text: "This message was deleted",
                     isDeleted: true,
-                    image: null // Also remove the image URL
+                    image: null
                 },
                 // AND pull/remove the current user's ID from the `starredBy` array.
                 $pull: {
@@ -155,7 +153,7 @@ router.post('/clear/:contactId', async (req, res) => {
             starredBy: { $nin: [currentUserId] }
         };
 
-        // Stage 1: Add user's ID to the `clearedBy` array for all non-starred messages.
+        // Stage 1: Added the user's ID to the `clearedBy` array for all non-starred messages.
         await Message.updateMany(
             conversationFilter,
             { $addToSet: { clearedBy: currentUserId } }
@@ -184,7 +182,7 @@ router.post('/star/:messageId', async (req, res) => {
             return res.status(404).json({ error: "Message not found" });
         }
 
-        // Check if the user's ID is already in the `starredBy` array
+        // Checking if the user's ID is already in the `starredBy` array
         const userIndex = message.starredBy.indexOf(currentUserId);
 
         if (userIndex > -1) {

@@ -20,7 +20,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
 
     const [messages, setMessages] = useState([]);
     const [messageText, setMessageText] = useState("");
-    const [imageToSend, setImageToSend] = useState(null); // { file: File, preview: string }
+    const [imageToSend, setImageToSend] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const socket = useSocket();
     const messagesEndRef = useRef(null);
@@ -173,8 +173,6 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             if (imageToSend) {
                 const formData = new FormData();
                 formData.append('file', imageToSend.file);
-                // IMPORTANT: Create an "unsigned" upload preset in your Cloudinary account
-                // and name it "chatrr_unsigned" or update the name here.
                 formData.append('upload_preset', 'chatrr_unsigned');
 
                 const res = await fetch(`https://api.cloudinary.com/v1_1/djbw8glgb/image/upload`, {
@@ -187,7 +185,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                 imageUrl = data.secure_url;
             }
 
-            // Step 2: Prepare message data and send to backend
+            // Preparing message data and send to backend
             const messagePayload = {
                 senderId: currentUser._id,
                 receiverId: selectedUser._id,
@@ -204,11 +202,10 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             const savedMessage = await res.json();
             if (!res.ok) throw new Error('Failed to send message');
 
-            // Step 3: Update UI and emit socket event
             setMessages(prev => [...prev, savedMessage]);
             socket.emit('sendMessage', savedMessage);
 
-            // Step 4: Clean up form state
+            // Reset input and image
             setMessageText("");
             handleCancelImageSend();
 
@@ -312,7 +309,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
 
             {/* Message List */}
             <div className="flex-grow w-full overflow-y-auto p-4">
-                <div className="flex flex-col gap-2">
+                <div className="space-y-2">
                     {messages.map((msg) => {
                         const isStarredByUser = msg.starredBy?.includes(currentUser._id);
                         const isMyMessage = msg.senderId.toString() === currentUser._id.toString();
@@ -321,21 +318,14 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                         return (
                             <div key={msg._id} className={`flex flex-col w-full ${isMyMessage ? 'items-end' : 'items-start'}`}>
                                 <div className={`flex items-center gap-2 group max-w-[70%] lg:max-w-[60%] ${isMyMessage ? 'flex-row' : 'flex-row-reverse'}`}>
-
                                     {!msg.isDeleted && hasContent && (
-                                        <div
-                                            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                            onClick={() => handleToggleStar(msg._id)}
-                                        >
+                                        <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={() => handleToggleStar(msg._id)}>
                                             {isStarredByUser ? <FaStar className="cursor-pointer text-yellow-400 h-4 w-4" title="Unstar message" /> : <FaRegStar className="cursor-pointer text-gray-400 hover:text-yellow-400 h-4 w-4" title="Star message" />}
                                         </div>
                                     )}
 
                                     {!msg.isDeleted && hasContent && (
-                                        <div
-                                            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                            onClick={() => handleDeleteClick(msg)}
-                                        >
+                                        <div className="p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={() => handleDeleteClick(msg)}>
                                             <MdDelete className="cursor-pointer text-gray-400 hover:text-red-500 h-5 w-5" title="Delete message" />
                                         </div>
                                     )}
@@ -356,9 +346,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                                     {isStarredByUser && (<FaStar className="text-yellow-400 h-3 w-3" />)}
                                     <span>{formatMessageTimestamp(msg.timestamp)}</span>
                                     {isMyMessage && !msg.isDeleted && (
-                                        msg.isRead ?
-                                            <BsCheckAll className="text-green-500 w-4 h-4" /> :
-                                            <BsCheckAll className="w-4 h-4" />
+                                        msg.isRead ? <BsCheckAll className="text-green-500 w-4 h-4" /> : <BsCheckAll className="w-4 h-4" />
                                     )}
                                 </div>
                             </div>

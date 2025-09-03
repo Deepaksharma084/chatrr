@@ -14,8 +14,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredFriends, setFilteredFriends] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const searchContainerRef = useRef(null); // Ref for the search container
-
+    const searchContainerRef = useRef(null);
     useEffect(() => {
         const fetchFriends = async () => {
             setIsLoading(true);
@@ -124,7 +123,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                         <input
                             required=""
                             type="search"
-                            className={`${styles.searchInput} !bg-base-300 !text-base-content !w-full !rounded-xl`}
+                            className={`${styles.searchInput} !bg-base-300 !text-base-content !w-full`}
                             id="search"
                             placeholder="Search friends"
                             value={searchTerm}
