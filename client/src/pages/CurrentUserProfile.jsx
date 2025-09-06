@@ -2,22 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { API_BASE_URL } from '../config';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import { MdSettings, MdLogout, MdDeleteForever } from 'react-icons/md';
 import { FaUserClock } from "react-icons/fa";
 import toast from 'react-hot-toast';
+import ProfileSkeleton from '../components/skeletons/ProfileSkeleton';
 
 // The ProfilePage will receive the currently logged-in user as a prop form protected route
 const ProfilePage = ({ currentUser }) => {
     const navigate = useNavigate();
 
-    if (!currentUser) {
-        return (
-            <div className="h-full flex items-center justify-center">
-                <span className="loading loading-lg"></span>
-            </div>
-        );
-    }
-    
     const handleLogout = () => {
         window.location.href = `${API_BASE_URL}/auth/logout`;
     };
@@ -26,14 +21,14 @@ const ProfilePage = ({ currentUser }) => {
         if (confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.')) {
             const toastId = toast.loading("Deleting account...");
             try {
-                const res = await fetch(`${API_BASE_URL}/auth/delete`, { 
-                    method: 'POST', 
-                    credentials: 'include' 
+                const res = await fetch(`${API_BASE_URL}/auth/delete`, {
+                    method: 'POST',
+                    credentials: 'include'
                 });
 
                 if (res.ok) {
                     toast.success("Account deleted successfully.", { id: toastId });
-                    handleLogout(); 
+                    handleLogout();
                 } else {
                     toast.error("Failed to delete account. Please try again.", { id: toastId });
                 }
@@ -43,15 +38,19 @@ const ProfilePage = ({ currentUser }) => {
         }
     };
 
+    if (!currentUser) {
+        return <ProfileSkeleton />;
+    }
+
     return (
         <div className="h-full flex items-center justify-center p-4 bg-base-200">
             {/* DaisyUI Card Component */}
             <div className="card rounded-2xl w-full max-w-md bg-base-100 shadow-xl">
                 <figure className="px-10 pt-10">
-                    <img 
-                        src={currentUser.picture} 
-                        alt={`${currentUser.name}'s profile picture`} 
-                        className="w-32 h-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4" 
+                    <LazyLoadImage
+                        src={`${currentUser.picture}=s128`}
+                        alt={`${currentUser.name}'s profile picture`}
+                        className="w-32 h-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4"
                     />
                 </figure>
                 <div className="card-body items-center text-center">

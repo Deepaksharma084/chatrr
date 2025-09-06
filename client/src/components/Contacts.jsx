@@ -1,4 +1,6 @@
 import { API_BASE_URL } from '../config';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import SidebarSkeleton from './skeletons/SidebarSkeleton.jsx';
 import styles from './SearchYourFriendInput.module.css';
 import toast from 'react-hot-toast';
@@ -118,20 +120,20 @@ export default function Contacts({ onSelectUser, selectedUser }) {
             </h1>
 
             <div ref={searchContainerRef} className="relative mx-1">
-                    <form className={styles.searchForm} onSubmit={(e) => e.preventDefault()}>
-                        <label htmlFor="search" className={styles.searchLabel}>Search friends</label>
-                        <input
-                            required=""
-                            type="search"
-                            className={`${styles.searchInput} !bg-base-300 !text-base-content !w-full`}
-                            id="search"
-                            placeholder="Search friends"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onFocus={() => setIsSearchFocused(true)}
-                        />
-                        <span className={styles.searchCaret}></span>
-                    </form>
+                <form className={styles.searchForm} onSubmit={(e) => e.preventDefault()}>
+                    <label htmlFor="search" className={styles.searchLabel}>Search friends</label>
+                    <input
+                        required=""
+                        type="search"
+                        className={`${styles.searchInput} !bg-base-300 !text-base-content !w-full`}
+                        id="search"
+                        placeholder="Search friends"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onFocus={() => setIsSearchFocused(true)}
+                    />
+                    <span className={styles.searchCaret}></span>
+                </form>
 
                 {isSearchFocused && searchTerm && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-base-100 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto">
@@ -142,7 +144,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                                     onClick={() => handleResultClick(friend)}
                                     className="flex items-center gap-4 p-3 cursor-pointer hover:bg-base-300 transition-colors"
                                 >
-                                    <img className='h-10 w-10 object-cover rounded-full' src={friend.picture} alt={friend.name} />
+                                    <img className='h-10 w-10 object-cover rounded-full' src={`${friend.picture}=s40`}  alt={friend.name} />
                                     <p className='text-md font-medium'>{friend.name}</p>
                                 </div>
                             ))
@@ -176,7 +178,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                                         }`}
                                 >
                                     <div className="relative">
-                                        <img className='h-12 w-12 object-cover rounded-full' src={friend.picture} alt={friend.name} />
+                                        <LazyLoadImage className='h-12 w-12 object-cover rounded-full' src={`${friend.picture}=s48`} alt={friend.name} />
                                         {isOnline && (
                                             <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-base-100"></span>
                                         )}

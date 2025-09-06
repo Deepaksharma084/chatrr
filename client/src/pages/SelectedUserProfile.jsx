@@ -2,13 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { API_BASE_URL } from '../config';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import { FaUserClock } from "react-icons/fa";
 import { GiHighKick } from "react-icons/gi";
 import toast from 'react-hot-toast';
+import ProfileSkeleton from '../components/skeletons/ProfileSkeleton';
 
 const ProfilePage = () => {
   const { id } = useParams();
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,6 +31,8 @@ const ProfilePage = () => {
         setSelectedUser(data);
       } catch {
         toast.error("Server error.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -55,14 +61,18 @@ const ProfilePage = () => {
     }
   };
 
+  if (isLoading) {
+    return <ProfileSkeleton />;
+  }
+
   if (!selectedUser) return <p className="text-center">Loading...</p>;
 
   return (
     <div className="h-full flex items-center justify-center p-4 bg-base-200">
       <div className="card rounded-2xl w-full max-w-md bg-base-100 shadow-xl">
         <figure className="px-10 pt-10">
-          <img
-            src={selectedUser.picture}
+          <LazyLoadImage
+            src={`${selectedUser.picture}=s128`}
             alt={`${selectedUser.name}'s profile`}
             className="w-32 h-32 rounded-full ring ring-primary ring-offset-base-100 ring-offset-4"
           />
