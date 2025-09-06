@@ -58,7 +58,9 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 15 * 24 * 60 * 60 * 1000 // Cookie expiration should match ttl
+    maxAge: 15 * 24 * 60 * 60 * 1000, // Cookie expiration should match ttl
+    domain: '.onrender.com',
+    sameSite: 'none' // Allows the cookie to be sent on cross-site requests
   }
 }));
 
