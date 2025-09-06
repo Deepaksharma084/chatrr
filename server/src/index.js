@@ -9,6 +9,7 @@ import session from 'express-session';
 import passport from 'passport';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import MongoStore from 'connect-mongo';
 
 import '../config/passport.js';
 import userAuthRoute from '../routes/userAuthRoute.js';
@@ -47,9 +48,15 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'a secret key',
   resave: false,
   saveUninitialized: true,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions',
+    ttl: 15 * 24 * 60 * 60 // = 15 days. Sessions will be deleted automatically after this period.
+  }),
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    maxAge: 15 * 24 * 60 * 60 * 1000 // Cookie expiration should match ttl
   }
 }));
 
