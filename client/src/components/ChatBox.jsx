@@ -290,7 +290,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             <div className="flex-shrink-0 w-full p-3.5 flex items-center justify-between shadow-md bg-base-100">
                 <div className="flex items-center gap-4 flex-1">
                     <div className="flex flex-row items-center justify-center gap-6 cursor-pointer" onClick={() => navigate(`/selected_user_profile/${selectedUser._id}`)}>
-                        <LazyLoadImage className="h-14 w-14 rounded-full object-cover" src={`${selectedUser.picture}=s48`}  alt={selectedUser.name} />
+                        <LazyLoadImage className="h-14 w-14 rounded-full object-cover" src={`${selectedUser.picture}=s48`} effect="blur"  alt={selectedUser.name} />
                         <h1 className='text-2xl font-bold truncate'>{selectedUser.name}</h1>
                     </div>
                 </div>

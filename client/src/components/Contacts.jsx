@@ -178,7 +178,7 @@ export default function Contacts({ onSelectUser, selectedUser }) {
                                         }`}
                                 >
                                     <div className="relative">
-                                        <LazyLoadImage className='h-12 w-12 object-cover rounded-full' src={`${friend.picture}=s48`} alt={friend.name} />
+                                        <LazyLoadImage className='h-12 w-12 object-cover rounded-full' src={`${friend.picture}=s48`} effect="blur" alt={friend.name} />
                                         {isOnline && (
                                             <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-base-100"></span>
                                         )}
