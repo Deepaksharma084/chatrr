@@ -69,6 +69,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use('/auth', userAuthRoute);
 app.use('/msg', messagesRoute);
 app.use('/friends', friendsRoute);
@@ -89,7 +93,7 @@ io.on('connection', (socket) => {
     socket.join(userId);
     socket.userId = userId; // CRITICAL: Associate the userId with this specific socket connection.
     onlineUsers[userId] = socket.id; // Add the user to our list of online users.
-    
+
     // Broadcast the updated list of online users to EVERYONE.
     io.emit('onlineUsers', Object.keys(onlineUsers));
     console.log('[JOIN] Online users:', Object.keys(onlineUsers));
