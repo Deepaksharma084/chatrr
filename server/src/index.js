@@ -24,8 +24,6 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://192.168.1.8:5173',
   process.env.FRONTEND_URL
 ];
 
@@ -49,6 +47,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'a secret key',
   resave: false,
   saveUninitialized: true,
+  proxy: true,
   store: MongoStore.create({
     mongoUrl: process.env.MONGO_URI,
     collectionName: 'sessions',
