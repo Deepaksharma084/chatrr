@@ -26,17 +26,12 @@ app.set('trust proxy', 1); //THis is trust first proxy
 
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
+  'http://localhost:5173',
   process.env.FRONTEND_URL
 ];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: allowedOrigins,
   credentials: true,
 };
 
