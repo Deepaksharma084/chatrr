@@ -25,7 +25,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   'http://localhost:5173',
-  'http://192.168.1.8:5173'
+  'http://192.168.1.8:5173',
+  process.env.FRONTEND_URL
 ];
 
 const corsOptions = {

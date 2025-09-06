@@ -12,8 +12,8 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get(
   '/google/callback',
   passport.authenticate('google', {
-    successRedirect: 'http://localhost:5173/messenger',
-    failureRedirect: 'http://localhost:5173/',
+    successRedirect: process.env.FRONTEND_URL + '/messenger',
+    failureRedirect: process.env.FRONTEND_URL + '/',
   })
 );
 
@@ -22,7 +22,7 @@ router.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) { return next(err); }
     res.clearCookie('connect.sid'); // The default session cookie name
-    res.redirect('http://localhost:5173/'); // Redirect to frontend
+    res.redirect(process.env.FRONTEND_URL + '/') // Redirect to frontend
   });
 });
 
