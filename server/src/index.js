@@ -22,6 +22,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 const app = express();
 
+app.set('trust proxy', 1); //THis is trust first proxy
+
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   process.env.FRONTEND_URL
