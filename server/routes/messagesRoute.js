@@ -16,9 +16,9 @@ router.post('/create', async (req, res) => {
         if (!receiverId || (!text && !image)) {
             return res.status(400).json({ error: 'Missing required fields or message content' });
         }
-        const newMessage = new Message({ senderId, receiverId, text, image });
-        await newMessage.save();
-        res.status(201).json(newMessage);
+        const newMessage = new Message({ senderId, receiverId, text: text || "", image });
+        const savedMessage = await newMessage.save();
+        res.status(201).json(savedMessage);
     } catch (err) {
         console.error("Error creating message:", err);
         res.status(500).json({ error: 'Failed to send message' });
@@ -29,15 +29,21 @@ router.post('/create', async (req, res) => {
 router.get('/get/:contactId', async (req, res) => {
     try {
         const { contactId } = req.params;
-        const currentUserId = req.user._id;
+        const currentUserId = req.user._id; // Using ObjectId is fine here as Mongoose handles casting
 
         const messages = await Message.find({
+            // Condition 1: Message is between the two users.
             $or: [
                 { senderId: currentUserId, receiverId: contactId },
                 { senderId: contactId, receiverId: currentUserId }
             ],
-            // Add your logic for hidden/cleared messages here if needed
+            // Condition 2: EITHER the message is not cleared by me, OR it is starred by me.
+            $or: [
+                { clearedBy: { $nin: [currentUserId] } },
+                { starredBy: { $in: [currentUserId] } }
+            ]
         }).sort({ timestamp: 1 });
+
         res.status(200).json(messages);
     } catch (err) {
         console.error("Error fetching messages:", err);
@@ -61,25 +67,42 @@ router.post('/mark-read/:contactId', async (req, res) => {
     }
 });
 
-// DELETE a message
+// DELETE a message (soft delete)
 router.delete('/delete/:messageId', async (req, res) => {
     try {
         const { messageId } = req.params;
         const currentUserId = req.user._id;
-        const message = await Message.findById(messageId);
-        if (!message) return res.status(404).json({ error: 'Message not found' });
-        if (message.senderId.toString() !== currentUserId.toString()) {
-            return res.status(403).json({ error: 'You are not authorized to delete this message' });
-        }
-        message.isDeleted = true;
-        message.text = "This message was deleted";
-        message.image = null;
-        message.starredBy = [];
-        await message.save();
-        res.status(200).json({ message: 'Message deleted successfully' });
+        const updatedMessage = await Message.findByIdAndUpdate(
+            messageId,
+            {
+                $set: { text: "This message was deleted", isDeleted: true, image: null },
+                $pull: { starredBy: currentUserId }
+            },
+            { new: true }
+        );
+        res.status(200).json(updatedMessage);
     } catch (err) {
-        console.error("Error deleting message:", err);
+        console.error('Error deleting message:', err);
         res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
+// HIDE a single message (for the current user)
+router.post('/hide/:messageId', async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const currentUserId = req.user._id;
+        await Message.findByIdAndUpdate(
+            messageId,
+            {
+                $addToSet: { clearedBy: currentUserId },
+                $pull: { starredBy: currentUserId }
+            }
+        );
+        res.status(200).json({ message: 'Message hidden successfully' });
+    } catch (err) {
+        console.error('Error hiding message:', err);
+        res.status(500).json({ error: 'Failed to hide message' });
     }
 });
 
@@ -87,35 +110,24 @@ router.delete('/delete/:messageId', async (req, res) => {
 router.post('/star/:messageId', async (req, res) => {
     try {
         const { messageId } = req.params;
-        const currentUserId = req.user._id.toString();
+        const currentUserId = req.user._id;
+
         const message = await Message.findById(messageId);
-        if (!message) return res.status(404).json({ error: 'Message not found' });
-        const isStarred = message.starredBy.includes(currentUserId);
-        if (isStarred) {
-            message.starredBy = message.starredBy.filter(id => id !== currentUserId);
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        const userIndex = message.starredBy.indexOf(currentUserId);
+        if (userIndex > -1) {
+            message.starredBy.splice(userIndex, 1);
         } else {
             message.starredBy.push(currentUserId);
         }
-        await message.save();
-        res.status(200).json({ message: 'Star status updated' });
+        const updatedMessage = await message.save();
+        res.status(200).json(updatedMessage);
     } catch (err) {
         console.error("Error updating star status:", err);
-        res.status(500).json({ error: 'Failed to update star status' });
-    }
-});
-
-// HIDE a message
-router.post('/hide/:messageId', async (req, res) => {
-    try {
-        const { messageId } = req.params;
-        const currentUserId = req.user._id;
-        await Message.findByIdAndUpdate(messageId, {
-            $addToSet: { hiddenFor: currentUserId }
-        });
-        res.status(200).json({ message: 'Message hidden' });
-    } catch (err) {
-        console.error("Error hiding message:", err);
-        res.status(500).json({ error: 'Failed to hide message' });
+        res.status(500).json({ error: "Failed to update star status" });
     }
 });
 
@@ -123,18 +135,29 @@ router.post('/hide/:messageId', async (req, res) => {
 router.post('/clear/:contactId', async (req, res) => {
     try {
         const { contactId } = req.params;
-        const currentUserId = req.user._id.toString();
+        const currentUserId = req.user._id;
+
+        const conversationFilter = {
+            $or: [
+                { senderId: currentUserId, receiverId: contactId },
+                { senderId: contactId, receiverId: currentUserId }
+            ]
+        };
+
+        // Stage 1: Hide all non-starred messages for the current user.
         await Message.updateMany(
-            {
-                $or: [
-                    { senderId: currentUserId, receiverId: contactId },
-                    { senderId: contactId, receiverId: currentUserId }
-                ],
-                starredBy: { $ne: currentUserId }
-            },
-            { $addToSet: { hiddenFor: currentUserId } }
+            { ...conversationFilter, starredBy: { $nin: [currentUserId] } },
+            { $addToSet: { clearedBy: currentUserId } }
         );
-        res.status(200).json({ message: 'Chat history cleared' });
+
+        // Stage 2: Permanently delete messages cleared by both users and not starred by anyone.
+        await Message.deleteMany({
+            ...conversationFilter,
+            clearedBy: { $all: [currentUserId, contactId] },
+            starredBy: { $size: 0 }
+        });
+
+        res.status(200).json({ message: 'Chat cleared successfully' });
     } catch (err) {
         console.error("Error clearing chat:", err);
         res.status(500).json({ error: 'Failed to clear chat' });
