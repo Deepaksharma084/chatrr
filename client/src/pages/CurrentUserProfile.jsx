@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { API_BASE_URL } from '../config';
+import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { MdSettings, MdLogout, MdDeleteForever } from 'react-icons/md';
@@ -14,18 +14,17 @@ const ProfilePage = ({ currentUser }) => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        window.location.href = `${API_BASE_URL}/auth/logout`;
+        localStorage.removeItem('chat-token');
+        window.location.href = '/';
     };
 
     const handleDeleteAccount = async () => {
         if (confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.')) {
             const toastId = toast.loading("Deleting account...");
             try {
-                const res = await fetch(`${API_BASE_URL}/auth/delete`, {
+                const res = await fetchWithAuth(`/auth/delete`, {
                     method: 'POST',
-                    credentials: 'include'
                 });
-
                 if (res.ok) {
                     toast.success("Account deleted successfully.", { id: toastId });
                     handleLogout();

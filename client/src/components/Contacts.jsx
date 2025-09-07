@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config';
+import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import SidebarSkeleton from './skeletons/SidebarSkeleton.jsx';
@@ -17,11 +17,12 @@ export default function Contacts({ onSelectUser, selectedUser }) {
     const [filteredFriends, setFilteredFriends] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const searchContainerRef = useRef(null);
+
     useEffect(() => {
         const fetchFriends = async () => {
             setIsLoading(true);
             try {
-                const res = await fetch(`${API_BASE_URL}/friends/list`, { credentials: 'include' });
+                const res = await fetchWithAuth('/friends/list'); 
                 if (!res.ok) throw new Error('Could not fetch friends list');
                 const friendsData = await res.json();
                 setFriends(friendsData);

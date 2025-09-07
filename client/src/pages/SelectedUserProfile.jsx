@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { API_BASE_URL } from '../config';
+import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { FaUserClock } from "react-icons/fa";
@@ -18,10 +18,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/auth/selectedUserProfile/${id}`, {
-          method: 'GET',
-          credentials: 'include',
-        });
+        const res = await fetchWithAuth(`/auth/selectedUserProfile/${id}`);
 
         if (!res.ok) {
           toast.error("Unable to load profile.", err);
@@ -43,9 +40,8 @@ const ProfilePage = () => {
     if (!confirm("Are you sure you want to unfriend?")) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/friends/unfriend/${id}`, {
+      const res = await fetchWithAuth(`/friends/unfriend/${id}`, {
         method: "POST",
-        credentials: "include",
       });
 
       if (!res.ok) {

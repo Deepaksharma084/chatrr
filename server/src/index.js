@@ -2,14 +2,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import cookieParser from 'cookie-parser';
 import path from "path";
 import { fileURLToPath } from 'url';
-import session from 'express-session';
 import passport from 'passport';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import MongoStore from 'connect-mongo';
 
 import '../config/passport.js';
 import userAuthRoute from '../routes/userAuthRoute.js';
@@ -38,33 +35,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'a secret key',
-  resave: false,
-  saveUninitialized: true,
-  proxy: true,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
-    collectionName: 'sessions',
-    ttl: 15 * 24 * 60 * 60 // = 15 days. Sessions will be deleted automatically after this period.
-  }),
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 15 * 24 * 60 * 60 * 1000, // Cookie expiration should match ttl
-    domain: '.onrender.com',
-    sameSite: 'none' // Allows the cookie to be sent on cross-site requests
-  }
-}));
-
 app.use(passport.initialize());
-app.use(passport.session());
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {

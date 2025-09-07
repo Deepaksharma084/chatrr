@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { API_BASE_URL } from "../config";
+import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { IoMdSend } from "react-icons/io";
 import { BsCheckAll } from "react-icons/bs";
@@ -44,14 +44,14 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         const fetchInitialMessagesAndMarkRead = async () => {
             setIsLoading(true);
             try {
-                const res = await fetch(`${API_BASE_URL}/msg/get/${selectedUser._id}`, { credentials: 'include' });
+                const res = await fetchWithAuth(`/msg/get/${selectedUser._id}`);
                 if (!res.ok) throw new Error('Failed to fetch messages');
                 const fetchedMessages = await res.json();
                 setMessages(fetchedMessages);
 
                 const unreadMessagesExist = fetchedMessages.some(m => m.senderId === selectedUser._id && !m.isRead);
                 if (unreadMessagesExist) {
-                    await fetch(`${API_BASE_URL}/msg/mark-read/${selectedUser._id}`, { method: 'POST', credentials: 'include' });
+                    await fetchWithAuth(`/msg/mark-read/${selectedUser._id}`, { method: 'POST' });
                     socket.emit('mark-as-read', { currentUserId: currentUser._id, contactId: selectedUser._id });
                 }
 
@@ -72,7 +72,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             if (message.senderId === selectedUser?._id) {
                 setMessages(prev => [...prev, message]);
                 socket.emit('mark-as-read', { currentUserId: currentUser._id, contactId: message.senderId });
-                fetch(`${API_BASE_URL}/msg/mark-read/${message.senderId}`, { method: 'POST', credentials: 'include' });
+                fetchWithAuth(`/msg/mark-read/${message.senderId}`, { method: 'POST' });
             }
         };
         const handleMessagesRead = ({ readerId }) => {
@@ -97,9 +97,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
     const handleClearChat = async () => {
         if (!confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/clear/${selectedUser._id}`, {
+            const res = await fetchWithAuth(`/msg/clear/${selectedUser._id}`, {
                 method: 'POST',
-                credentials: 'include'
             });
             if (!res.ok) throw new Error('Server failed to clear chat');
             toast.success("Chat cleared");
@@ -127,9 +126,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             return msg;
         }));
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/star/${messageId}`, {
+            const res = await fetchWithAuth(`/msg/star/${messageId}`, {
                 method: 'POST',
-                credentials: 'include'
             });
             if (!res.ok) throw new Error('Failed to update star status');
         } catch (err) {
@@ -194,10 +192,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
                 image: imageUrl
             };
 
-            const res = await fetch(`${API_BASE_URL}/msg/create`, {
+            const res = await fetchWithAuth(`/msg/create`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(messagePayload)
             });
             const savedMessage = await res.json();
@@ -235,9 +231,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         socket.emit('deleteMessage', { messageId: messageId, receiverId: selectedUser._id });
 
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/delete/${messageId}`, {
+            const res = await fetchWithAuth(`/msg/delete/${messageId}`, {
                 method: 'DELETE',
-                credentials: 'include'
             });
             if (!res.ok) throw new Error('Server failed to delete message');
             toast.success("Message deleted");
@@ -252,9 +247,8 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
         setMessages(prev => prev.filter(msg => msg._id !== messageId));
 
         try {
-            const res = await fetch(`${API_BASE_URL}/msg/hide/${messageId}`, {
+            const res = await fetchWithAuth(`/msg/hide/${messageId}`, {
                 method: 'POST',
-                credentials: 'include'
             });
             if (!res.ok) throw new Error('Server failed to hide message');
         } catch (err) {
@@ -290,7 +284,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             <div className="flex-shrink-0 w-full p-3.5 flex items-center justify-between shadow-md bg-base-100">
                 <div className="flex items-center gap-4 flex-1">
                     <div className="flex flex-row items-center justify-center gap-6 cursor-pointer" onClick={() => navigate(`/selected_user_profile/${selectedUser._id}`)}>
-                        <LazyLoadImage className="h-14 w-14 rounded-full object-cover" src={`${selectedUser.picture}=s48`} effect="blur"  alt={selectedUser.name} />
+                        <LazyLoadImage className="h-14 w-14 rounded-full object-cover" src={`${selectedUser.picture}=s48`} effect="blur" alt={selectedUser.name} />
                         <h1 className='text-2xl font-bold truncate'>{selectedUser.name}</h1>
                     </div>
                 </div>

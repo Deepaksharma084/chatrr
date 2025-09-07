@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import { SocketProvider } from './context/SocketContext';
 import { getTheme } from './utils/themeStorage.js';
 import useFriendSocket from './hooks/useFriendSocket';
+import AuthCallback from './pages/AuthCallback';
 
 function AppContent() {
   useFriendSocket();
@@ -22,10 +23,11 @@ function AppContent() {
       <main className='flex-grow overflow-y-auto'>
         <Routes>
           <Route path="/" element={<GoogleAuth />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/messenger" element={<ProtectedRoute><Messenger /></ProtectedRoute>} />
           <Route path="/current_user_profile" element={<ProtectedRoute><CurrentUserProfilePage /></ProtectedRoute>} />
           <Route path="/selected_user_profile/:id" element={<ProtectedRoute><SelectedUserProfilePage /></ProtectedRoute>} />
-          <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
     </div>

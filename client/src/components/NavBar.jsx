@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../config';
+import { fetchWithAuth } from "../utils/fetchWithAuth";
 import { useNavigate } from 'react-router-dom';
 import { MdLogout } from "react-icons/md";
 import { CgProfile } from "react-icons/cg";
@@ -18,11 +18,22 @@ export default function NavBar() {
 
     // Function to fetch the latest friend requests
     const fetchFriendRequests = async () => {
+
+        // Check if the user is logged in before fetching.
+        const token = localStorage.getItem('chat-token');
+        if (!token) {
+            // If no token, do nothing. The user is logged out.
+            return;
+        }
+
         try {
-            const res = await fetch(`${API_BASE_URL}/friends/requests`, { credentials: 'include' });
+            const res = await fetchWithAuth(`/friends/requests`);
             if (res.ok) {
                 const data = await res.json();
                 setFriendRequests(data);
+            } else if (res.status === 401) {
+                // If the token is invalid, ProtectedRoute will handle the logout.
+                console.error("Navbar: Invalid token, session expired.");
             }
         } catch (error) {
             console.error("Failed to fetch friend requests:", error);
@@ -45,10 +56,8 @@ export default function NavBar() {
         e.preventDefault();
         if (!addFriendEmail.trim()) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/friends/send-request`, {
+            const res = await fetchWithAuth(`/friends/send-request`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ recipientEmail: addFriendEmail })
             });
             const data = await res.json();
@@ -71,7 +80,7 @@ export default function NavBar() {
         setFriendRequests(prev => prev.filter(req => req._id !== requesterId));
 
         try {
-            const res = await fetch(`${API_BASE_URL}/friends/accept-request/${requesterId}`, { method: 'POST', credentials: 'include' });
+            const res = await fetchWithAuth(`/friends/accept-request/${requesterId}`, { method: 'POST' });
             if (!res.ok) throw new Error("Failed to accept request");
 
             toast.success("Friend request accepted!");
@@ -90,7 +99,7 @@ export default function NavBar() {
         setFriendRequests(prev => prev.filter(req => req._id !== requesterId));
 
         try {
-            const res = await fetch(`${API_BASE_URL}/friends/reject-request/${requesterId}`, { method: 'POST', credentials: 'include' });
+            const res = await fetchWithAuth(`/friends/reject-request/${requesterId}`, { method: 'POST' });
             if (!res.ok) throw new Error("Failed to reject request");
 
             toast.success("Friend request rejected");
@@ -100,7 +109,11 @@ export default function NavBar() {
         }
     };
 
-    const handleLogout = () => { window.location.href = `${API_BASE_URL}/auth/logout`; };
+    const handleLogout = () => {
+        localStorage.removeItem('chat-token');
+        navigate('/');
+        toast.success("You have been logged out.");
+    };
 
     return (
         <>
@@ -145,7 +158,7 @@ export default function NavBar() {
                                     friendRequests.map(req => (
                                         <div key={req._id} className="flex items-center justify-between p-2 rounded-lg hover:bg-base-200">
                                             <div className="flex items-center gap-3">
-                                                <img src={req.picture} alt={req.name} className="w-10 h-10 rounded-full" />
+                                                <img src={`${req.picture}=s40`} alt={req.name} className="w-10 h-10 rounded-full" />
                                                 <span>{req.name}</span>
                                             </div>
                                             <div className="flex gap-2">
@@ -221,7 +234,7 @@ export default function NavBar() {
                                         <li key={req._id}>
                                             <div className="flex flex-col gap-2 w-full">
                                                 <div className="flex items-center gap-2">
-                                                    <img src={req.picture} alt={req.name} className="w-8 h-8 rounded-full" />
+                                                    <img src={`${req.picture}=s32`} alt={req.name} className="w-8 h-8 rounded-full" />
                                                     <span>{req.name}</span>
                                                 </div>
                                                 <div className="flex gap-2">
