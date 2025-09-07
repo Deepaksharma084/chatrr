@@ -7,5 +7,5 @@ export const setTheme = (theme) => {
 };
 
 export const getTheme = () => {
-  return localStorage.getItem("selectedTheme") || "retro"; // default theme
+  return localStorage.getItem("selectedTheme") || "Black"; // default theme
 };
