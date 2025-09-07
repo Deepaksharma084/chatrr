@@ -40,6 +40,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'a secret key',
   resave: false,
@@ -73,10 +77,6 @@ const io = new Server(httpServer, {
 app.use((req, res, next) => {
   req.io = io;
   next();
-});
-
-app.get('/healthz', (req, res) => {
-  res.status(200).send('OK');
 });
 
 app.use('/auth', userAuthRoute);
