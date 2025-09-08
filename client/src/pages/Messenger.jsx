@@ -26,6 +26,27 @@ export default function Messenger({ currentUser }) {
         };
     }, [socket, selectedUser]);
 
+    useEffect(() => {
+        // Push a new state when a user is selected
+        if (selectedUser) {
+            window.history.pushState({ selectedUser: selectedUser }, '');
+        }
+
+        // Handle back button press
+        const handlePopState = (event) => {
+            if (!event.state?.selectedUser) {
+                setSelectedUser(null);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        // Cleanup listener
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [selectedUser]);
+
     const handleBackToContacts = () => {
         setSelectedUser(null);
     };
