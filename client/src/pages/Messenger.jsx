@@ -5,7 +5,6 @@ import { useSocket } from '../context/SocketContext';
 
 export default function Messenger({ currentUser }) {
     const [selectedUser, setSelectedUser] = useState(null);
-    const [showProfile, setShowProfile] = useState(false);
 
     const socket = useSocket();
 
@@ -28,53 +27,28 @@ export default function Messenger({ currentUser }) {
     }, [socket, selectedUser]);
 
     useEffect(() => {
-        // Push state when user is selected or profile is toggled
+        // Push a new state when a user is selected
         if (selectedUser) {
-            window.history.pushState(
-                {
-                    selectedUser: selectedUser,
-                    showProfile: showProfile
-                },
-                ''
-            );
+            window.history.pushState({ selectedUser: selectedUser }, '');
         }
 
+        // Handle back button press
         const handlePopState = (event) => {
-            if (!event.state) {
+            if (!event.state?.selectedUser) {
                 setSelectedUser(null);
-                setShowProfile(false);
-                return;
-            }
-
-            // If we're showing profile, go back to chat
-            if (event.state.selectedUser && !event.state.showProfile) {
-                setShowProfile(false);
-            }
-            // If we're in chat and no profile flag, go back to contacts
-            else if (!event.state.selectedUser) {
-                setSelectedUser(null);
-                setShowProfile(false);
             }
         };
 
         window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, [selectedUser, showProfile]);
+
+        // Cleanup listener
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [selectedUser]);
 
     const handleBackToContacts = () => {
         setSelectedUser(null);
-    };
-
-    const handleViewProfile = () => {
-        setShowProfile(true);
-        // Push new state when viewing profile
-        window.history.pushState(
-            {
-                selectedUser: selectedUser,
-                showProfile: true
-            },
-            ''
-        );
     };
 
     return (
@@ -92,19 +66,11 @@ export default function Messenger({ currentUser }) {
                 ${selectedUser ? 'flex' : 'hidden md:flex'} 
                 flex-col w-full md:w-8/12 lg:w-9/12 h-full bg-base-100
             `}>
-                {showProfile ? (
-                    <SelectedUserProfile
-                        user={selectedUser}
-                        onBack={() => setShowProfile(false)}
-                    />
-                ) : (
-                    <ChatBox
-                        selectedUser={selectedUser}
-                        currentUser={currentUser}
-                        onBack={handleBackToContacts}
-                        onViewProfile={handleViewProfile}
-                    />
-                )}
+                <ChatBox
+                    selectedUser={selectedUser}
+                    currentUser={currentUser}
+                    onBack={handleBackToContacts}
+                />
             </div>
         </div>
     );
