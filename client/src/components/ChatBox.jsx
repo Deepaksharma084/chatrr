@@ -42,6 +42,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack }) {
             return;
         }
         const fetchInitialMessagesAndMarkRead = async () => {
+            setMessages([]); 
             setIsLoading(true);
             try {
                 const res = await fetchWithAuth(`/msg/get/${selectedUser._id}`);

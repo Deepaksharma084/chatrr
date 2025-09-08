@@ -29,18 +29,25 @@ router.post('/create', async (req, res) => {
 router.get('/get/:contactId', async (req, res) => {
     try {
         const { contactId } = req.params;
-        const currentUserId = req.user._id; // Using ObjectId is fine here as Mongoose handles casting
+        const currentUserId = req.user._id;
 
+        // Reset messages when switching contacts
         const messages = await Message.find({
-            // Condition 1: Message is between the two users.
-            $or: [
-                { senderId: currentUserId, receiverId: contactId },
-                { senderId: contactId, receiverId: currentUserId }
-            ],
-            // Condition 2: EITHER the message is not cleared by me, OR it is starred by me.
-            $or: [
-                { clearedBy: { $nin: [currentUserId] } },
-                { starredBy: { $in: [currentUserId] } }
+            $and: [
+                // Only get messages between these two specific users
+                {
+                    $or: [
+                        { senderId: currentUserId, receiverId: contactId },
+                        { senderId: contactId, receiverId: currentUserId }
+                    ]
+                },
+                // Only show messages that aren't cleared OR are starred
+                {
+                    $or: [
+                        { clearedBy: { $nin: [currentUserId] } },
+                        { starredBy: { $in: [currentUserId] } }
+                    ]
+                }
             ]
         }).sort({ timestamp: 1 });
 
