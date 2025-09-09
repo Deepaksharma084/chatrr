@@ -126,7 +126,7 @@ export default function NavBar() {
                     <li className="dropdown dropdown-end">
                         <label ref={dropdownRef} tabIndex={0} className="btn text-lg rounded-xl btn-ghost">
                             <FaUserFriends className="w-5 h-5" />
-                            <span className="ml-1">Friends</span>
+                            <span className="ml-1">Connections</span>
                             {friendRequests.length > 0 && (
                                 <div className="indicator-item badge badge-secondary badge-sm">{friendRequests.length}</div>
                             )}
@@ -200,13 +200,13 @@ export default function NavBar() {
                             <div className="indicator-item badge badge-secondary badge-sm">{friendRequests.length}</div>
                         )}
                     </label>
-                    <ul tabIndex={0} className="menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-72">
+                    <ul tabIndex={0} className="text-xl menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-72">
                         {/* Mobile Friend Request Section */}
                         <li>
                             <details>
                                 <summary className="flex items-center gap-2">
                                     <FaUserFriends className="w-5 h-5" />
-                                    <span>Friends</span>
+                                    <span>Connections</span>
                                     {friendRequests.length > 0 && (
                                         <div className="badge badge-secondary badge-sm">{friendRequests.length}</div>
                                     )}
