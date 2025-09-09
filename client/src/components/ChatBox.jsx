@@ -272,7 +272,7 @@ export default function ChatBox({ selectedUser, currentUser, onBack, onViewProfi
         return (
             <div className="flex flex-col gap-4 items-center justify-center h-full text-center p-4">
                 <h1 className="text-3xl font-bold">Welcome to Chatrr</h1>
-                <p className="text-lg text-base-content/70">Select a contact to start a conversation</p>
+                <p className="text-lg text-base-content/70">Select a friend to start a conversation</p>
             </div>
         );
     }
