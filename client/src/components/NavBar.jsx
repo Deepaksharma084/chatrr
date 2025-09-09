@@ -13,6 +13,7 @@ export default function NavBar() {
     const navigate = useNavigate();
     const [friendRequests, setFriendRequests] = useState([]);
     const [addFriendEmail, setAddFriendEmail] = useState("");
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const dropdownRef = useRef(null);
 
@@ -194,80 +195,89 @@ export default function NavBar() {
 
                 {/* Mobile Navigation */}
                 <div className="dropdown dropdown-end md:hidden">
-                    <label tabIndex={0} className="btn btn-ghost btn-circle">
+                    <label
+                        tabIndex={0}
+                        className="btn btn-ghost btn-circle"
+                        onClick={() => setIsMenuOpen(!isMenuOpen)} // Add this onClick handler
+                    >
                         <AiOutlineMenu className="w-6 h-6" />
                         {friendRequests.length > 0 && (
                             <div className="indicator-item badge badge-secondary badge-sm">{friendRequests.length}</div>
                         )}
                     </label>
-                    <ul tabIndex={0} className="text-xl menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-72">
-                        {/* Mobile Friend Request Section */}
-                        <li>
-                            <details>
-                                <summary className="flex items-center gap-2">
-                                    <FaUserFriends className="w-5 h-5" />
-                                    <span>Connections</span>
-                                    {friendRequests.length > 0 && (
-                                        <div className="badge badge-secondary badge-sm">{friendRequests.length}</div>
-                                    )}
-                                </summary>
-                                <ul className="p-2 bg-base-100">
-                                    {/* Add Friend Form */}
-                                    <li>
-                                        <form onSubmit={handleSendRequest} className="w-full">
-                                            <div className="flex flex-col gap-2 w-full">
-                                                <input
-                                                    type="email"
-                                                    placeholder="Enter user's email"
-                                                    className="input input-bordered w-full"
-                                                    value={addFriendEmail}
-                                                    onChange={(e) => setAddFriendEmail(e.target.value)}
-                                                />
-                                                <button type="submit" className="btn btn-primary w-full">
-                                                    <UserPlus className="w-4 h-4" /> Add Friend
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </li>
-                                    <div className="divider">Pending Requests</div>
-                                    {friendRequests.map(req => (
-                                        <li key={req._id}>
-                                            <div className="flex flex-col gap-2 w-full">
-                                                <div className="flex items-center gap-2">
-                                                    <img src={`${req.picture}=s32`} alt={req.name} className="w-8 h-8 rounded-full" />
-                                                    <span>{req.name}</span>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button onClick={() => handleAcceptRequest(req._id)} className="btn btn-success btn-sm flex-1">
-                                                        <UserCheck className="w-4 h-4" />
-                                                    </button>
-                                                    <button onClick={() => handleRejectRequest(req._id)} className="btn btn-error btn-sm flex-1">
-                                                        <UserX className="w-4 h-4" />
+                    {isMenuOpen && ( // Add this conditional rendering
+                        <ul tabIndex={0} className="text-xl menu dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-72">
+                            {/* Mobile Friend Request Section */}
+                            <li>
+                                <details>
+                                    <summary className="flex items-center gap-2">
+                                        <FaUserFriends className="w-5 h-5" />
+                                        <span>Connections</span>
+                                        {friendRequests.length > 0 && (
+                                            <div className="badge badge-secondary badge-sm">{friendRequests.length}</div>
+                                        )}
+                                    </summary>
+                                    <ul className="p-2 bg-base-100">
+                                        {/* Add Friend Form */}
+                                        <li>
+                                            <form onSubmit={handleSendRequest} className="w-full">
+                                                <div className="flex flex-col gap-2 w-full">
+                                                    <input
+                                                        type="email"
+                                                        placeholder="Enter user's email"
+                                                        className="input input-bordered w-full"
+                                                        value={addFriendEmail}
+                                                        onChange={(e) => setAddFriendEmail(e.target.value)}
+                                                    />
+                                                    <button type="submit" className="btn btn-primary w-full">
+                                                        <UserPlus className="w-4 h-4" /> Add Friend
                                                     </button>
                                                 </div>
-                                            </div>
+                                            </form>
                                         </li>
-                                    ))}
-                                </ul>
-                            </details>
-                        </li>
+                                        <div className="divider">Pending Requests</div>
+                                        {friendRequests.map(req => (
+                                            <li key={req._id}>
+                                                <div className="flex flex-col gap-2 w-full">
+                                                    <div className="flex items-center gap-2">
+                                                        <img src={`${req.picture}=s32`} alt={req.name} className="w-8 h-8 rounded-full" />
+                                                        <span>{req.name}</span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => handleAcceptRequest(req._id)} className="btn btn-success btn-sm flex-1">
+                                                            <UserCheck className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => handleRejectRequest(req._id)} className="btn btn-error btn-sm flex-1">
+                                                            <UserX className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </details>
+                            </li>
 
-                        <li>
-                            <a onClick={() => navigate('/current_user_profile')}>
-                                <CgProfile />Profile
-                            </a>
-                        </li>
-                        <li>
-                            <a onClick={() => navigate('/settings')}>
-                                <MdOutlineSettingsSuggest />Settings
-                            </a>
-                        </li>
-                        <li>
-                            <a onClick={handleLogout}>
-                                <MdLogout />Logout
-                            </a>
-                        </li>
-                    </ul>
+                            <li>
+                                <a onClick={() => {
+                                    navigate('/current_user_profile');
+                                    setIsMenuOpen(false); // Close menu after clicking
+                                }}>
+                                    <CgProfile />Profile
+                                </a>
+                            </li>
+                            <li>
+                                <a onClick={() => navigate('/settings')}>
+                                    <MdOutlineSettingsSuggest />Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a onClick={handleLogout}>
+                                    <MdLogout />Logout
+                                </a>
+                            </li>
+                        </ul>
+                    )}
                 </div>
             </nav>
             <div className='divider m-0'></div>
