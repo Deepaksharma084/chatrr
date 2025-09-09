@@ -20,13 +20,13 @@ Chatrr is a modern real-time chat application built with the MERN stack and Sock
 ![Connections Screenshot](https://github.com/user-attachments/assets/727b3f15-240c-414c-b9ae-20033592f1b8)
 
 -   **Current User Profile**\
-![Current User Profile Screenshot](https://github.com/user-attachments/assets/3f8d9780-3c7f-4528-8680-7d8132fdf8f0)
+![Current User Profile Screenshot](https://github.com/user-attachments/assets/1d3ebaee-339d-4898-bdc5-c4ec5e7287d1)
 
 -   **Selected User Profile**\
 ![Selected User Profile Screenshot](https://github.com/user-attachments/assets/6da01cf2-4857-48af-b0e6-e66fe0295562)
 
 -   **Settings**\
-![Settings Screenshot](https://github.com/user-attachments/assets/4eb6afb8-9f0a-42a4-a5a7-0d7f3bdcdc84)
+![Settings Screenshot](https://github.com/user-attachments/assets/d7d683bf-04b2-406b-996a-1611e52cfb60)
 
 
 ------------------------------------------------------------------------
