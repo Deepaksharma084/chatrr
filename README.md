@@ -28,6 +28,12 @@ Chatrr is a modern real-time chat application built with the MERN stack and Sock
 -   **Settings**\
 ![Settings Screenshot](https://github.com/user-attachments/assets/d7d683bf-04b2-406b-996a-1611e52cfb60)
 
+-   **Clear chat functionality**\
+![Clear chat functionality Screenshot](https://github.com/user-attachments/assets/fdc4116c-55d5-4196-922a-166edeaf7080)
+
+-   **Star, Delete functionality**\
+![Star, Delete functionality Screenshot](https://github.com/user-attachments/assets/16d35c35-932b-464b-9e18-76c7674fc165)
+
 
 ------------------------------------------------------------------------
 
